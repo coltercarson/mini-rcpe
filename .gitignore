@@ -1,0 +1,21 @@
+# Add to .gitignore to prevent committing sensitive data
+.env
+data/
+rcpe.db
+*.db
+*.db-journal
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.vscode/
+.idea/
+.DS_Store
+static/uploads/*
+!static/uploads/.gitkeep

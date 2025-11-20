@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      # Change the port here (format: "host_port:8000")
+      - "8000:8000"
+    environment:
+      # CONFIGURE YOUR SETTINGS HERE:
+      # Admin password for editing recipes
+      - ADMIN_PASSWORD=changeme
+      # Database path inside container (usually no need to change)
+      - DB_PATH=/app/data/rcpe.db
+    volumes:
+      # Persist database
+      - ./data:/app/data
+      # Persist uploaded images
+      - ./static/uploads:/app/static/uploads
+    restart: unless-stopped

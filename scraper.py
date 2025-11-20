@@ -8,6 +8,55 @@ from urllib.parse import urlparse
 UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+def parse_ingredient(ing_str: str) -> dict:
+    """Parse an ingredient string into amount, unit, and name."""
+    # Common units to look for
+    units = [
+        'cup', 'cups', 'tablespoon', 'tablespoons', 'tbsp', 'teaspoon', 'teaspoons', 'tsp',
+        'ounce', 'ounces', 'oz', 'pound', 'pounds', 'lb', 'lbs',
+        'gram', 'grams', 'g', 'kilogram', 'kilograms', 'kg',
+        'milliliter', 'milliliters', 'ml', 'liter', 'liters', 'l',
+        'pinch', 'dash', 'clove', 'cloves', 'slice', 'slices'
+    ]
+    
+    # Pattern: optional amount (number/fraction) + optional unit + name
+    # Examples: "2 cups flour", "500g sugar", "1/2 teaspoon salt", "3 eggs"
+    pattern = r'^([\d./\s]+)?\s*(' + '|'.join(units) + r')?\s*(.+)$'
+    match = re.match(pattern, ing_str.strip(), re.IGNORECASE)
+    
+    if match:
+        amount_str = match.group(1)
+        unit = match.group(2)
+        name = match.group(3)
+        
+        # Parse amount (handle fractions like "1/2")
+        amount = None
+        if amount_str:
+            amount_str = amount_str.strip()
+            try:
+                # Handle fractions
+                if '/' in amount_str:
+                    parts = amount_str.split('/')
+                    if len(parts) == 2:
+                        amount = float(parts[0]) / float(parts[1])
+                else:
+                    amount = float(amount_str)
+            except:
+                pass
+        
+        return {
+            "ingredient_name": name.strip() if name else ing_str,
+            "amount": amount,
+            "unit": unit.lower() if unit else None
+        }
+    
+    # If no match, return the whole string as name
+    return {
+        "ingredient_name": ing_str,
+        "amount": None,
+        "unit": None
+    }
+
 def scrape_recipe(url: str) -> dict:
     # Add User-Agent to avoid 403/404 on some sites
     headers = {
@@ -48,27 +97,46 @@ def scrape_recipe(url: str) -> dict:
                 "ingredients": [] 
             })
     
-    # Attach all ingredients to the first step for now, 
-    # as our model requires ingredients to be in steps.
-    # The user can reorganize them in the UI.
+    # Distribute ingredients to steps based on keyword matching
     if steps and ingredients:
-        # We need to parse ingredient strings into name/amount/unit if possible
-        # recipe-scrapers gives raw strings usually.
-        # We'll just put the whole string in 'ingredient_name' and leave amount/unit empty
-        # or try a very basic split.
-        for ing_str in ingredients:
-            steps[0]["ingredients"].append({
-                "ingredient_name": ing_str,
-                "amount": None,
-                "unit": None
-            })
+        # Parse all ingredients first
+        parsed_ingredients = [parse_ingredient(ing_str) for ing_str in ingredients]
+        
+        # Track which ingredients have been assigned
+        assigned_ingredients = set()
+        
+        # For each step, find ingredients mentioned in its action text
+        for step in steps:
+            action_lower = step["action"].lower()
+            
+            for idx, parsed_ing in enumerate(parsed_ingredients):
+                if idx in assigned_ingredients:
+                    continue
+                    
+                # Extract key words from ingredient name for matching
+                ing_name = parsed_ing["ingredient_name"].lower()
+                
+                # Remove common words and split into keywords
+                common_words = {'the', 'a', 'an', 'of', 'to', 'for', 'and', 'or', 'in', 'on', 'with'}
+                ing_keywords = [word for word in ing_name.split() if word not in common_words and len(word) > 2]
+                
+                # Check if any keyword from ingredient appears in the step action
+                if any(keyword in action_lower for keyword in ing_keywords):
+                    step["ingredients"].append(parsed_ing)
+                    assigned_ingredients.add(idx)
+        
+        # Add any unassigned ingredients to the first step
+        for idx, parsed_ing in enumerate(parsed_ingredients):
+            if idx not in assigned_ingredients:
+                steps[0]["ingredients"].append(parsed_ing)
+                
     elif ingredients:
         # If no steps found but ingredients exist, create a dummy step
         steps.append({
             "step_number": 1,
             "action": "Prepare ingredients",
             "time_minutes": None,
-            "ingredients": [{"ingredient_name": i, "amount": None, "unit": None} for i in ingredients]
+            "ingredients": [parse_ingredient(i) for i in ingredients]
         })
 
     return {
