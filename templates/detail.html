@@ -43,10 +43,12 @@
     <ul>
         {% for step in recipe.steps %}
         {% for ingredient in step.ingredients %}
-        <li class="ingredient-item" data-base-amount="{{ ingredient.amount }}">
+        <li class="ingredient-item" data-base-amount="{{ ingredient.amount }}"
+            data-base-unit="{{ ingredient.unit if ingredient.unit else '' }}"
+            data-name="{{ ingredient.ingredient_name }}">
             <span class="amount">{{ ingredient.amount if ingredient.amount else '' }}</span>
             <span class="unit">{{ ingredient.unit if ingredient.unit else '' }}</span>
-            {{ ingredient.ingredient_name }}
+            <span class="name">{{ ingredient.ingredient_name }}</span>
         </li>
         {% endfor %}
         {% endfor %}
@@ -67,6 +69,23 @@
                         style="max-width: 100%; height: auto; display: block;">
                 </div>
                 {% endif %}
+
+                {% if step.ingredients %}
+                <div style="margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                    <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.9em; color: var(--meta-color);">
+                        {% for ingredient in step.ingredients %}
+                        <li class="ingredient-item" data-base-amount="{{ ingredient.amount }}"
+                            data-base-unit="{{ ingredient.unit if ingredient.unit else '' }}"
+                            data-name="{{ ingredient.ingredient_name }}">
+                            <span class="amount">{{ ingredient.amount if ingredient.amount else '' }}</span>
+                            <span class="unit">{{ ingredient.unit if ingredient.unit else '' }}</span>
+                            <span class="name">{{ ingredient.ingredient_name }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
                 {% if step.time_minutes %}
                 <span class="step-meta">({{ step.time_minutes }} min)</span>
                 {% endif %}
@@ -78,6 +97,92 @@
 
 <script>
     const baseServings = {{ recipe.base_servings }};
+    let conversionData = [];
+
+    // Fetch conversion data on load
+    fetch('/api/conversions')
+        .then(response => response.json())
+        .then(data => {
+            conversionData = data;
+            initConversions();
+        })
+        .catch(err => console.error('Error fetching conversions:', err));
+
+    function initConversions() {
+        const ingredients = document.querySelectorAll('.ingredient-item');
+        ingredients.forEach(el => {
+            const name = el.dataset.name.toLowerCase();
+            const unit = el.dataset.baseUnit.toLowerCase().replace(/s$/, ''); // Simple singularization
+
+            // Find matching conversion
+            const conversion = conversionData.find(c => name.includes(c.name.toLowerCase()));
+
+            if (conversion && conversion.common_units[unit]) {
+                // Store conversion info
+                el.dataset.density = conversion.density_g_per_ml;
+                el.dataset.mlPerUnit = conversion.common_units[unit];
+                el.dataset.isConverted = "false";
+
+                // Add toggle button
+                const btn = document.createElement('button');
+                btn.innerText = '↔';
+                btn.className = 'conversion-toggle';
+                btn.style.marginLeft = '0.5rem';
+                btn.style.cursor = 'pointer';
+                btn.style.border = '1px solid var(--border-color)';
+                btn.style.background = 'none';
+                btn.style.borderRadius = '4px';
+                btn.style.padding = '0 2px';
+                btn.style.fontSize = '0.8em';
+                btn.title = 'Toggle Mass/Volume';
+
+                btn.onclick = () => toggleConversion(el);
+                el.appendChild(btn);
+            }
+        });
+    }
+
+    function toggleConversion(el) {
+        const isConverted = el.dataset.isConverted === "true";
+        el.dataset.isConverted = isConverted ? "false" : "true";
+        updateIngredient(el);
+    }
+
+    function updateIngredient(el) {
+        const scaleFactor = parseFloat(document.getElementById('scale-select').value);
+        const baseAmount = parseFloat(el.dataset.baseAmount);
+
+        if (isNaN(baseAmount)) return;
+
+        let amount = baseAmount * scaleFactor;
+        let unit = el.dataset.baseUnit;
+
+        if (el.dataset.isConverted === "true") {
+            // Convert to grams
+            // Mass = Volume(ml) * Density
+            // Volume = Amount * ml_per_unit
+            const mlPerUnit = parseFloat(el.dataset.mlPerUnit);
+            const density = parseFloat(el.dataset.density);
+
+            const totalMl = amount * mlPerUnit;
+            const massGrams = totalMl * density;
+
+            amount = massGrams;
+            unit = 'g';
+        }
+
+        // Rounding logic
+        if (amount > 100) {
+            amount = Math.round(amount);
+        } else if (amount > 10) {
+            amount = Math.round(amount * 10) / 10;
+        } else {
+            amount = Math.round(amount * 100) / 100;
+        }
+
+        el.querySelector('.amount').innerText = amount;
+        el.querySelector('.unit').innerText = unit;
+    }
 
     function scaleRecipe(factor) {
         factor = parseFloat(factor);
@@ -89,21 +194,7 @@
         // Update ingredients
         const ingredients = document.querySelectorAll('.ingredient-item');
         ingredients.forEach(el => {
-            const baseAmount = parseFloat(el.dataset.baseAmount);
-            if (!isNaN(baseAmount)) {
-                let newAmount = baseAmount * factor;
-
-                // Intelligent rounding
-                if (newAmount > 100) {
-                    newAmount = Math.round(newAmount);
-                } else if (newAmount > 10) {
-                    newAmount = Math.round(newAmount * 10) / 10;
-                } else {
-                    newAmount = Math.round(newAmount * 100) / 100;
-                }
-
-                el.querySelector('.amount').innerText = newAmount;
-            }
+            updateIngredient(el);
         });
     }
 </script>
