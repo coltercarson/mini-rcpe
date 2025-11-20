@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mini-RCPE{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <button class="sidebar-toggle" id="sidebar-toggle">☰</button>
+
+    <div class="sidebar" id="sidebar">
+        <nav>
+            <ul class="recipe-list">
+                <li><a href="/" style="font-weight: bold; margin-bottom: 1rem; display: block;">Home</a></li>
+                {% if user %}
+                <li><a href="/new" style="color: var(--meta-color);">+ New Recipe</a></li>
+                <li><a href="/logout" style="color: var(--meta-color);">Logout</a></li>
+                {% else %}
+                <li><a href="/login" style="color: var(--meta-color);">Login</a></li>
+                {% endif %}
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1rem 0;">
+                {% for recipe in all_recipes %}
+                <li><a href="/recipe/{{ recipe.id }}">{{ recipe.title }}</a></li>
+                {% endfor %}
+            </ul>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1rem 0;">
+            <div style="margin-top: 1rem;">
+                <h4 style="font-size: 0.9em; color: var(--meta-color); margin-bottom: 0.5rem;">Settings</h4>
+                <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label for="font-size-input" style="font-size: 0.8em;">Font Size (px)</label>
+                    <input type="number" id="font-size-input" value="16" min="10" max="32"
+                        style="width: 60px; padding: 0.2rem;">
+                </div>
+                <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label for="bg-color-input" style="font-size: 0.8em;">Background</label>
+                    <input type="color" id="bg-color-input" value="#f4f4f4"
+                        style="width: 100%; height: 30px; padding: 0; border: none;">
+                </div>
+            </div>
+        </nav>
+    </div>
+
+    <main class="main-content">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('sidebar-toggle');
+        const fontSizeInput = document.getElementById('font-size-input');
+        const bgColorInput = document.getElementById('bg-color-input');
+        const root = document.documentElement;
+
+        // Toggle Sidebar
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth < 1024 &&
+                !sidebar.contains(e.target) &&
+                !toggleBtn.contains(e.target) &&
+                sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        // Settings Logic
+        function updateSettings(fontSize, bgColor) {
+            root.style.setProperty('--base-font-size', fontSize + 'px');
+            root.style.setProperty('--bg-color', bgColor);
+            localStorage.setItem('mini-rcpe-settings', JSON.stringify({ fontSize, bgColor }));
+        }
+
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('mini-rcpe-settings'));
+            if (settings) {
+                if (settings.fontSize) {
+                    fontSizeInput.value = settings.fontSize;
+                    root.style.setProperty('--base-font-size', settings.fontSize + 'px');
+                }
+                if (settings.bgColor) {
+                    bgColorInput.value = settings.bgColor;
+                    root.style.setProperty('--bg-color', settings.bgColor);
+                }
+            }
+        }
+
+        fontSizeInput.addEventListener('input', (e) => {
+            updateSettings(e.target.value, bgColorInput.value);
+        });
+
+        bgColorInput.addEventListener('input', (e) => {
+            updateSettings(fontSizeInput.value, e.target.value);
+        });
+
+        // Load settings on startup
+        loadSettings();
+    </script>
+
+</body>
+
+</html>

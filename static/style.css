@@ -1,0 +1,251 @@
+:root {
+    --bg-color: #f4f4f4;
+    /* Slightly grey background */
+    --text-color: #000000;
+    --meta-color: #555555;
+    --border-color: #cccccc;
+    --spacing-unit: 1rem;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    --base-font-size: 16px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-mono);
+    /* Monospace for everything */
+    line-height: 1.5;
+    margin: 0;
+    padding: 0;
+    font-size: var(--base-font-size);
+    /* Dynamic text size */
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+}
+
+a:hover {
+    border-bottom: 1px solid var(--text-color);
+}
+
+.container {
+    max-width: 650px;
+    margin: 0 auto;
+    padding: 3rem 1rem;
+}
+
+/* Sidebar / Navigation */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200px;
+    height: 100%;
+    background: var(--bg-color);
+    padding: 2rem 1rem;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 100;
+    font-size: var(--base-font-size);
+    /* Ensure sidebar matches body size */
+}
+
+.sidebar.open {
+    transform: translateX(0);
+}
+
+.sidebar-toggle {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 101;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: var(--base-font-size);
+    padding: 0.5rem;
+    font-family: var(--font-mono);
+    color: var(--text-color);
+}
+
+/* Main Content */
+.main-content {
+    margin-left: 0;
+    transition: margin-left 0.3s ease;
+}
+
+@media (min-width: 1024px) {
+    .sidebar {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 200px;
+    }
+
+    .sidebar-toggle {
+        display: none;
+    }
+}
+
+/* Typography - Force everything to be the same size/weight */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-weight: normal;
+    font-size: var(--base-font-size);
+    /* Same size as body */
+    margin-top: 0;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    /* Optional: uppercase for hierarchy without size change? Or just bold? Let's stick to plain or maybe bold. User said "keep text size the same". */
+    font-weight: bold;
+}
+
+.meta {
+    color: var(--meta-color);
+    font-size: calc(var(--base-font-size) * 0.875);
+    margin-bottom: 2rem;
+}
+
+/* Recipe List */
+.recipe-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 0;
+    /* No title, so start at top */
+}
+
+.recipe-list li {
+    margin-bottom: 0.5rem;
+}
+
+.recipe-list a {
+    display: block;
+    padding: 0.1rem 0;
+    color: var(--text-color);
+}
+
+/* Recipe Detail */
+.recipe-header {
+    margin-bottom: 3rem;
+}
+
+.ingredients-summary {
+    margin-bottom: 3rem;
+}
+
+.ingredients-summary h3 {
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.ingredients-summary ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.ingredients-summary li {
+    margin-bottom: 0.2rem;
+}
+
+.step {
+    margin-bottom: 2rem;
+}
+
+.step-header {
+    display: flex;
+    justify-content: flex-start;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+}
+
+.step-number {
+    font-weight: bold;
+    margin-right: 1rem;
+    min-width: 1.5rem;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.step-ingredients {
+    margin-bottom: 0.5rem;
+    color: var(--meta-color);
+}
+
+.step-action {
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.step-meta {
+    color: var(--meta-color);
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="number"],
+textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: var(--base-font-size);
+    outline: none;
+}
+
+input:focus,
+textarea:focus {
+    border-color: var(--text-color);
+}
+
+button {
+    background: transparent;
+    color: var(--text-color);
+    border: 1px solid var(--text-color);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: var(--base-font-size);
+    font-family: var(--font-mono);
+}
+
+button:hover {
+    background: var(--text-color);
+    color: var(--bg-color);
+}
+
+.add-btn {
+    border: 1px dashed var(--meta-color);
+    color: var(--meta-color);
+}
+
+.add-btn:hover {
+    border-color: var(--text-color);
+    color: var(--text-color);
+    background: transparent;
+}

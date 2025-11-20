@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}{{ recipe.title }} - Mini-RCPE{% endblock %}
+
+{% block content %}
+<div class="recipe-header">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <h1 style="margin-bottom: 0.5rem;">{{ recipe.title }}</h1>
+        {% if user %}
+        <a href="/recipe/{{ recipe.id }}/edit" style="font-size: 0.8em; color: var(--meta-color);">[Edit]</a>
+        {% endif %}
+    </div>
+
+    {% if recipe.image_filename %}
+    <div style="margin-bottom: 1.5rem;">
+        <img src="/static/uploads/{{ recipe.image_filename }}" alt="{{ recipe.title }}"
+            style="max-width: 100%; height: auto; display: block;">
+    </div>
+    {% endif %}
+
+    <div class="meta">
+        {% if recipe.total_time_minutes %}
+        <span>Time: {{ recipe.total_time_minutes }} min</span>
+        <span style="margin: 0 0.5rem;">•</span>
+        {% endif %}
+        <span>Servings: <span id="servings-display">{{ recipe.base_servings }}</span></span>
+
+        <div style="margin-top: 0.5rem;">
+            <label for="scale-select" style="font-size: 0.9em; margin-right: 0.5rem;">Scale:</label>
+            <select id="scale-select" onchange="scaleRecipe(this.value)"
+                style="font-family: var(--font-mono); font-size: 0.9em; padding: 0.2rem;">
+                <option value="0.5">0.5x</option>
+                <option value="1" selected>1x</option>
+                <option value="2">2x</option>
+                <option value="3">3x</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="ingredients-summary">
+    <h3>Ingredients</h3>
+    <ul>
+        {% for step in recipe.steps %}
+        {% for ingredient in step.ingredients %}
+        <li class="ingredient-item" data-base-amount="{{ ingredient.amount }}">
+            <span class="amount">{{ ingredient.amount if ingredient.amount else '' }}</span>
+            <span class="unit">{{ ingredient.unit if ingredient.unit else '' }}</span>
+            {{ ingredient.ingredient_name }}
+        </li>
+        {% endfor %}
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="steps">
+    <h3>Preparation</h3>
+    {% for step in recipe.steps %}
+    <div class="step">
+        <div class="step-header">
+            <span class="step-number">{{ step.step_number }}.</span>
+            <div class="step-content">
+                <span class="step-action">{{ step.action }}</span>
+                {% if step.image_filename %}
+                <div style="margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                    <img src="/static/uploads/{{ step.image_filename }}" alt="Step {{ step.step_number }}"
+                        style="max-width: 100%; height: auto; display: block;">
+                </div>
+                {% endif %}
+                {% if step.time_minutes %}
+                <span class="step-meta">({{ step.time_minutes }} min)</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    const baseServings = {{ recipe.base_servings }};
+
+    function scaleRecipe(factor) {
+        factor = parseFloat(factor);
+
+        // Update servings display
+        const newServings = Math.round(baseServings * factor * 10) / 10;
+        document.getElementById('servings-display').innerText = newServings;
+
+        // Update ingredients
+        const ingredients = document.querySelectorAll('.ingredient-item');
+        ingredients.forEach(el => {
+            const baseAmount = parseFloat(el.dataset.baseAmount);
+            if (!isNaN(baseAmount)) {
+                let newAmount = baseAmount * factor;
+
+                // Intelligent rounding
+                if (newAmount > 100) {
+                    newAmount = Math.round(newAmount);
+                } else if (newAmount > 10) {
+                    newAmount = Math.round(newAmount * 10) / 10;
+                } else {
+                    newAmount = Math.round(newAmount * 100) / 100;
+                }
+
+                el.querySelector('.amount').innerText = newAmount;
+            }
+        });
+    }
+</script>
+{% endblock %}
