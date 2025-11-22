@@ -1,4 +1,4 @@
-import scraper
+from app import scraper
 import json
 
 urls = [

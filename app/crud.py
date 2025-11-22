@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-import models, schemas
+from app import models, schemas
 
 def get_recipe(db: Session, recipe_id: int):
     return db.query(models.Recipe).filter(models.Recipe.id == recipe_id).first()
@@ -11,7 +11,8 @@ def create_recipe(db: Session, recipe: schemas.RecipeCreate):
     db_recipe = models.Recipe(
         title=recipe.title,
         total_time_minutes=recipe.total_time_minutes,
-        base_servings=recipe.base_servings
+        base_servings=recipe.base_servings,
+        image_filename=recipe.image_filename
     )
     db.add(db_recipe)
     db.commit()
@@ -23,7 +24,8 @@ def create_recipe(db: Session, recipe: schemas.RecipeCreate):
             step_number=step_data.step_number,
             action=step_data.action,
             time_minutes=step_data.time_minutes,
-            tools=step_data.tools
+            tools=step_data.tools,
+            image_filename=step_data.image_filename
         )
         db.add(db_step)
         db.commit()
@@ -51,6 +53,7 @@ def update_recipe(db: Session, recipe_id: int, recipe_data: schemas.RecipeCreate
     db_recipe.title = recipe_data.title
     db_recipe.total_time_minutes = recipe_data.total_time_minutes
     db_recipe.base_servings = recipe_data.base_servings
+    db_recipe.image_filename = recipe_data.image_filename
     
     # Delete existing steps (cascade will handle ingredients)
     # Note: In a more complex app, we might try to diff steps, but for MVP, replacing is safer/easier
@@ -63,7 +66,8 @@ def update_recipe(db: Session, recipe_id: int, recipe_data: schemas.RecipeCreate
             step_number=step_data.step_number,
             action=step_data.action,
             time_minutes=step_data.time_minutes,
-            tools=step_data.tools
+            tools=step_data.tools,
+            image_filename=step_data.image_filename
         )
         db.add(db_step)
         db.commit() # Commit to get ID

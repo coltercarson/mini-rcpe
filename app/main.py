@@ -4,8 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
-from database import engine, get_db, SessionLocal
-import models, crud, schemas, scraper
+from app.database import engine, get_db, SessionLocal
+from app import models, crud, schemas, scraper
 import os
 import shutil
 import uuid
@@ -15,11 +15,11 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
 # Create uploads directory if it doesn't exist
-UPLOAD_DIR = "static/uploads"
+UPLOAD_DIR = "app/static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+templates = Jinja2Templates(directory="app/templates")
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "secret")
 
@@ -91,8 +91,6 @@ def new_recipe(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
     all_recipes = crud.get_recipes(db)
     return templates.TemplateResponse("form.html", {"request": request, "all_recipes": all_recipes, "user": user})
-
-from fastapi.encoders import jsonable_encoder
 
 @app.get("/recipe/{recipe_id}/edit", response_class=HTMLResponse)
 def edit_recipe(request: Request, recipe_id: int, db: Session = Depends(get_db)):
