@@ -1,4 +1,4 @@
-import scraper
+from app import scraper
 import json
 
 # Test with BBC Good Food pancakes recipe

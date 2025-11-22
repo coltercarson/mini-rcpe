@@ -16,5 +16,5 @@ services:
       # Persist database
       - ./data:/app/data
       # Persist uploaded images
-      - ./static/uploads:/app/static/uploads
+      - ./app/static/uploads:/app/app/static/uploads
     restart: unless-stopped
