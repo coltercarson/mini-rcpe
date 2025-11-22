@@ -92,8 +92,6 @@ def new_recipe(request: Request, db: Session = Depends(get_db)):
     all_recipes = crud.get_recipes(db)
     return templates.TemplateResponse("form.html", {"request": request, "all_recipes": all_recipes, "user": user})
 
-from fastapi.encoders import jsonable_encoder
-
 @app.get("/recipe/{recipe_id}/edit", response_class=HTMLResponse)
 def edit_recipe(request: Request, recipe_id: int, db: Session = Depends(get_db)):
     user = get_current_user(request)
