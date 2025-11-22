@@ -9,3 +9,21 @@ docker compose up -d
 ```
 
 # Development
+
+## Running Tests
+
+This project includes comprehensive unit tests. To run the test suite:
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-test.txt
+
+# Run tests
+pytest
+
+# Run tests with coverage
+pytest --cov=.
+```
+
+See [TESTING.md](TESTING.md) for detailed testing documentation.
