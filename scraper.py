@@ -42,7 +42,7 @@ def parse_ingredient(ing_str: str) -> dict:
                         amount = float(parts[0]) / float(parts[1])
                 else:
                     amount = float(amount_str)
-            except:
+            except (ValueError, ZeroDivisionError):
                 pass
         
         return {
@@ -70,7 +70,7 @@ def parse_ingredient(ing_str: str) -> dict:
                         amount = float(parts[0]) / float(parts[1])
                 else:
                     amount = float(amount_str)
-            except:
+            except (ValueError, ZeroDivisionError):
                 pass
         
         # Check if single letter after number is a unit (g, l, etc)
