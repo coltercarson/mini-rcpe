@@ -17,5 +17,5 @@ build/
 .vscode/
 .idea/
 .DS_Store
-static/uploads/*
-!static/uploads/.gitkeep
+app/static/uploads/*
+!app/static/uploads/.gitkeep

@@ -5,7 +5,7 @@ import uuid
 import re
 from urllib.parse import urlparse
 
-UPLOAD_DIR = "static/uploads"
+UPLOAD_DIR = "app/static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def parse_ingredient(ing_str: str) -> dict:
