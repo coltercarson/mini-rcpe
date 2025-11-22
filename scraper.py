@@ -21,7 +21,8 @@ def parse_ingredient(ing_str: str) -> dict:
     
     # Pattern: optional amount (number/fraction) + optional unit + name
     # Examples: "2 cups flour", "500g sugar", "1/2 teaspoon salt", "3 eggs"
-    pattern = r'^([\d./\s]+)?\s*(' + '|'.join(units) + r')?\s*(.+)$'
+    # Use word boundary \b to ensure complete unit match
+    pattern = r'^([\d./\s]+)?\s*\b(' + '|'.join(units) + r')\b\s*(.+)$'
     match = re.match(pattern, ing_str.strip(), re.IGNORECASE)
     
     if match:
@@ -48,6 +49,43 @@ def parse_ingredient(ing_str: str) -> dict:
             "ingredient_name": name.strip() if name else ing_str,
             "amount": amount,
             "unit": unit.lower() if unit else None
+        }
+    
+    # If no unit match, try to match just amount and name
+    pattern_no_unit = r'^([\d./]+)\s*([a-zA-Z]?)?\s*(.+)$'
+    match_no_unit = re.match(pattern_no_unit, ing_str.strip())
+    
+    if match_no_unit:
+        amount_str = match_no_unit.group(1)
+        unit_str = match_no_unit.group(2)
+        name = match_no_unit.group(3)
+        
+        # Parse amount
+        amount = None
+        if amount_str:
+            try:
+                if '/' in amount_str:
+                    parts = amount_str.split('/')
+                    if len(parts) == 2:
+                        amount = float(parts[0]) / float(parts[1])
+                else:
+                    amount = float(amount_str)
+            except:
+                pass
+        
+        # Check if single letter after number is a unit (g, l, etc)
+        unit = None
+        if unit_str and unit_str.lower() in ['g', 'l']:
+            unit = unit_str.lower()
+        else:
+            # If not a unit, it's part of the name
+            if unit_str:
+                name = unit_str + name
+        
+        return {
+            "ingredient_name": name.strip() if name else ing_str,
+            "amount": amount,
+            "unit": unit
         }
     
     # If no match, return the whole string as name
