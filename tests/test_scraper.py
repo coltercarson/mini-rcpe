@@ -1,7 +1,51 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from scraper import parse_ingredient, scrape_recipe
+from app.scraper import parse_ingredient, scrape_recipe, validate_url
+
+
+class TestValidateUrl:
+    """Tests for validate_url function."""
+    
+    def test_valid_http_url(self):
+        """Test that valid HTTP URLs pass validation."""
+        validate_url("http://example.com/recipe")
+        # Should not raise exception
+    
+    def test_valid_https_url(self):
+        """Test that valid HTTPS URLs pass validation."""
+        validate_url("https://example.com/recipe")
+        # Should not raise exception
+    
+    def test_invalid_scheme(self):
+        """Test that non-HTTP(S) schemes are rejected."""
+        with pytest.raises(Exception) as exc_info:
+            validate_url("file:///etc/passwd")
+        assert "HTTP and HTTPS" in str(exc_info.value)
+    
+    def test_localhost_blocked(self):
+        """Test that localhost URLs are blocked."""
+        with pytest.raises(Exception) as exc_info:
+            validate_url("http://localhost:8080/recipe")
+        assert "localhost" in str(exc_info.value).lower()
+    
+    def test_private_ip_blocked(self):
+        """Test that private IP addresses are blocked."""
+        with pytest.raises(Exception) as exc_info:
+            validate_url("http://192.168.1.1/recipe")
+        assert "private" in str(exc_info.value).lower()
+    
+    def test_loopback_ip_blocked(self):
+        """Test that loopback IP addresses are blocked."""
+        with pytest.raises(Exception) as exc_info:
+            validate_url("http://127.0.0.1/recipe")
+        assert "private" in str(exc_info.value).lower()
+    
+    def test_no_hostname(self):
+        """Test that URLs without hostname are rejected."""
+        with pytest.raises(Exception) as exc_info:
+            validate_url("http:///recipe")
+        assert "hostname" in str(exc_info.value).lower()
 
 
 class TestParseIngredient:
@@ -81,8 +125,8 @@ class TestParseIngredient:
 class TestScrapeRecipe:
     """Tests for scrape_recipe function."""
     
-    @patch('scraper.requests.get')
-    @patch('scraper.scrape_html')
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
     def test_scrape_recipe_basic(self, mock_scrape_html, mock_requests_get):
         """Test basic recipe scraping."""
         # Mock the HTTP response
@@ -112,8 +156,8 @@ class TestScrapeRecipe:
         assert result["steps"][0]["step_number"] == 1
         assert result["steps"][0]["action"] == "Mix ingredients."
     
-    @patch('scraper.requests.get')
-    @patch('scraper.scrape_html')
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
     def test_scrape_recipe_with_ingredient_distribution(self, mock_scrape_html, mock_requests_get):
         """Test recipe scraping with ingredient distribution to steps."""
         mock_response = MagicMock()
@@ -149,8 +193,8 @@ class TestScrapeRecipe:
         step2_ingredient_names = [ing["ingredient_name"] for ing in result["steps"][1]["ingredients"]]
         assert "milk" in step2_ingredient_names
     
-    @patch('scraper.requests.get')
-    @patch('scraper.scrape_html')
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
     def test_scrape_recipe_no_steps(self, mock_scrape_html, mock_requests_get):
         """Test recipe scraping when no instructions are provided."""
         mock_response = MagicMock()
@@ -173,8 +217,8 @@ class TestScrapeRecipe:
         assert result["steps"][0]["action"] == "Prepare ingredients"
         assert len(result["steps"][0]["ingredients"]) == 1
     
-    @patch('scraper.requests.get')
-    @patch('scraper.scrape_html')
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
     def test_scrape_recipe_yields_parsing(self, mock_scrape_html, mock_requests_get):
         """Test parsing different yield formats."""
         mock_response = MagicMock()
@@ -201,3 +245,54 @@ class TestScrapeRecipe:
             mock_scraper.yields.return_value = yields_text
             result = scrape_recipe("http://example.com/test")
             assert result["base_servings"] == expected_servings
+    
+    @patch.dict('os.environ', {'LLM_ENABLED': 'true'})
+    @patch('app.scraper.LLM_AVAILABLE', True)
+    @patch('app.scraper.extract_recipe_with_llm')
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
+    def test_llm_fallback_on_scraper_failure(self, mock_scrape_html, mock_requests_get, mock_llm):
+        """Test that LLM fallback is used when recipe-scrapers fails."""
+        # Mock HTTP response
+        mock_response = MagicMock()
+        mock_response.text = "<html>Recipe content</html>"
+        mock_response.raise_for_status = MagicMock()
+        mock_requests_get.return_value = mock_response
+        
+        # Mock recipe-scrapers to fail
+        mock_scrape_html.side_effect = Exception("Unsupported website")
+        
+        # Mock LLM to succeed
+        mock_llm.return_value = {
+            "title": "LLM Extracted Recipe",
+            "total_time_minutes": 45,
+            "base_servings": 6,
+            "image_filename": None,
+            "steps": [{"step_number": 1, "action": "Test", "time_minutes": None, "ingredients": []}]
+        }
+        
+        result = scrape_recipe("http://example.com/unsupported")
+        
+        # Verify LLM was called
+        assert mock_llm.called
+        assert result["title"] == "LLM Extracted Recipe"
+        assert result["base_servings"] == 6
+    
+    @patch.dict('os.environ', {'LLM_ENABLED': 'false'})
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
+    def test_no_llm_fallback_when_disabled(self, mock_scrape_html, mock_requests_get):
+        """Test that LLM fallback is not used when disabled."""
+        mock_response = MagicMock()
+        mock_response.text = "<html>Recipe content</html>"
+        mock_response.raise_for_status = MagicMock()
+        mock_requests_get.return_value = mock_response
+        
+        # Mock recipe-scrapers to fail
+        mock_scrape_html.side_effect = Exception("Unsupported website")
+        
+        # Should raise exception without trying LLM
+        with pytest.raises(Exception) as exc_info:
+            scrape_recipe("http://example.com/unsupported")
+        
+        assert "Recipe extraction failed" in str(exc_info.value)

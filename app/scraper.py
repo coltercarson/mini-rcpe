@@ -4,9 +4,58 @@ import os
 import uuid
 import re
 from urllib.parse import urlparse
+from typing import Optional
+import ipaddress
 
 UPLOAD_DIR = "app/static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Configuration constants
+HTTP_TIMEOUT = 30  # Timeout for HTTP requests in seconds
+
+# Import LLM fallback (will gracefully handle if not available)
+try:
+    from app.llm_fallback import extract_recipe_with_llm
+    LLM_AVAILABLE = True
+except ImportError:
+    LLM_AVAILABLE = False
+    extract_recipe_with_llm = None
+
+
+def is_llm_enabled() -> bool:
+    """Check if LLM fallback is enabled and available."""
+    return LLM_AVAILABLE and os.getenv("LLM_ENABLED", "false").lower() == "true"
+
+
+def validate_url(url: str) -> None:
+    """
+    Validate URL to prevent SSRF attacks.
+    Raises Exception if URL is invalid or potentially dangerous.
+    """
+    try:
+        parsed = urlparse(url)
+        
+        # Only allow HTTP and HTTPS
+        if parsed.scheme not in ('http', 'https'):
+            raise Exception("Only HTTP and HTTPS URLs are allowed")
+        
+        # Ensure hostname is present
+        if not parsed.hostname:
+            raise Exception("Invalid URL: no hostname")
+        
+        # Block requests to private/local IP addresses
+        try:
+            ip = ipaddress.ip_address(parsed.hostname)
+            if ip.is_private or ip.is_loopback or ip.is_reserved:
+                raise Exception("Requests to private/local IP addresses are not allowed")
+        except ValueError:
+            # Hostname is not an IP address, which is fine
+            # Additional check: block localhost variants
+            if parsed.hostname.lower() in ('localhost', '0.0.0.0', '127.0.0.1', '::1'):
+                raise Exception("Requests to localhost are not allowed")
+    
+    except Exception as e:
+        raise Exception(f"Invalid URL: {str(e)}")
 
 def parse_ingredient(ing_str: str) -> dict:
     """Parse an ingredient string into amount, unit, and name."""
@@ -95,14 +144,58 @@ def parse_ingredient(ing_str: str) -> dict:
         "unit": None
     }
 
-def scrape_recipe(url: str) -> dict:
+def scrape_recipe(url: str, use_llm_fallback: bool = True) -> dict:
+    """
+    Scrape a recipe from a URL using recipe-scrapers.
+    If recipe-scrapers fails and use_llm_fallback is True, attempt to use local LLM.
+    
+    Args:
+        url: URL of the recipe
+        use_llm_fallback: Whether to use LLM fallback on failure (default: True)
+    
+    Returns:
+        Dictionary with recipe data
+    
+    Raises:
+        Exception: If both recipe-scrapers and LLM fallback fail
+    
+    Security:
+        URL validation is performed to prevent SSRF attacks. Only HTTP/HTTPS URLs
+        to public internet addresses are allowed.
+    """
+    # Validate URL to prevent SSRF attacks
+    # This blocks requests to localhost, private IPs, and non-HTTP(S) schemes
+    validate_url(url)
+    
     # Add User-Agent to avoid 403/404 on some sites
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     
-    html = requests.get(url, headers=headers).text
-    scraper = scrape_html(html, org_url=url)
+    # Fetch HTML
+    try:
+        response = requests.get(url, headers=headers, timeout=HTTP_TIMEOUT)
+        response.raise_for_status()
+        html = response.text
+    except Exception as e:
+        raise Exception(f"Failed to fetch URL: {str(e)}")
+    
+    # Try recipe-scrapers first
+    try:
+        scraper = scrape_html(html, org_url=url)
+    except Exception as scraper_error:
+        # If recipe-scrapers fails, try LLM fallback
+        if use_llm_fallback and is_llm_enabled():
+            print(f"Recipe-scrapers failed: {scraper_error}. Attempting LLM fallback...")
+            llm_result = extract_recipe_with_llm(html, url)
+            if llm_result:
+                print("Successfully extracted recipe using LLM fallback")
+                return llm_result
+            else:
+                raise Exception(f"Both recipe-scrapers and LLM fallback failed. Original error: {scraper_error}")
+        else:
+            # Re-raise original error if LLM not available/enabled
+            raise Exception(f"Recipe extraction failed: {scraper_error}")
     
     # Extract data
     title = scraper.title()

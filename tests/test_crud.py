@@ -1,7 +1,6 @@
 import pytest
 
-import crud
-import schemas
+from app import crud, schemas
 
 
 class TestGetRecipe:

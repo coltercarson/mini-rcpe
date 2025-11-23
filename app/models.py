@@ -6,6 +6,7 @@ import datetime
 
 class Recipe(Base):
     __tablename__ = "recipes"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, index=True, nullable=False)
@@ -19,6 +20,7 @@ class Recipe(Base):
 
 class Step(Base):
     __tablename__ = "steps"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     recipe_id = Column(Integer, ForeignKey("recipes.id"))
@@ -33,6 +35,7 @@ class Step(Base):
 
 class StepIngredient(Base):
     __tablename__ = "step_ingredients"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     step_id = Column(Integer, ForeignKey("steps.id"))
@@ -45,6 +48,7 @@ class StepIngredient(Base):
 # Conversion table for future use
 class IngredientConversion(Base):
     __tablename__ = "ingredient_conversions"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
