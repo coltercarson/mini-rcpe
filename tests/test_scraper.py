@@ -1,7 +1,51 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from scraper import parse_ingredient, scrape_recipe
+from scraper import parse_ingredient, scrape_recipe, validate_url
+
+
+class TestValidateUrl:
+    """Tests for validate_url function."""
+    
+    def test_valid_http_url(self):
+        """Test that valid HTTP URLs pass validation."""
+        validate_url("http://example.com/recipe")
+        # Should not raise exception
+    
+    def test_valid_https_url(self):
+        """Test that valid HTTPS URLs pass validation."""
+        validate_url("https://example.com/recipe")
+        # Should not raise exception
+    
+    def test_invalid_scheme(self):
+        """Test that non-HTTP(S) schemes are rejected."""
+        with pytest.raises(Exception) as exc_info:
+            validate_url("file:///etc/passwd")
+        assert "HTTP and HTTPS" in str(exc_info.value)
+    
+    def test_localhost_blocked(self):
+        """Test that localhost URLs are blocked."""
+        with pytest.raises(Exception) as exc_info:
+            validate_url("http://localhost:8080/recipe")
+        assert "localhost" in str(exc_info.value).lower()
+    
+    def test_private_ip_blocked(self):
+        """Test that private IP addresses are blocked."""
+        with pytest.raises(Exception) as exc_info:
+            validate_url("http://192.168.1.1/recipe")
+        assert "private" in str(exc_info.value).lower()
+    
+    def test_loopback_ip_blocked(self):
+        """Test that loopback IP addresses are blocked."""
+        with pytest.raises(Exception) as exc_info:
+            validate_url("http://127.0.0.1/recipe")
+        assert "private" in str(exc_info.value).lower()
+    
+    def test_no_hostname(self):
+        """Test that URLs without hostname are rejected."""
+        with pytest.raises(Exception) as exc_info:
+            validate_url("http:///recipe")
+        assert "hostname" in str(exc_info.value).lower()
 
 
 class TestParseIngredient:

@@ -15,7 +15,11 @@ except ImportError:
     from scraper import parse_ingredient
 
 
-def get_llm_config() -> Dict[str, str]:
+# Configuration constants
+MAX_TEXT_LENGTH = 8000  # Maximum text length to send to LLM (to stay within context limits)
+
+
+def get_llm_config() -> Dict[str, Any]:
     """Get LLM configuration from environment variables."""
     return {
         "base_url": os.getenv("LLM_BASE_URL", "http://localhost:11434"),
@@ -27,10 +31,16 @@ def get_llm_config() -> Dict[str, str]:
 def clean_html_to_text(html: str) -> str:
     """
     Extract plain text from HTML, removing scripts, styles, and excessive whitespace.
+    
+    Note: This is a best-effort HTML cleaning for preparing text to send to an LLM.
+    It's not a security-critical HTML sanitizer. The LLM processes the text in isolation
+    and doesn't execute any code, so perfect HTML parsing is not required.
     """
-    # Remove script and style elements
-    text = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
-    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    # Remove script and style elements (handles most common cases)
+    # Note: This regex-based approach is not perfect for all edge cases with malformed HTML,
+    # but it's sufficient for cleaning recipe HTML before LLM processing
+    text = re.sub(r'<script[^>]*>.*?</script\s*>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<style[^>]*>.*?</style\s*>', '', text, flags=re.DOTALL | re.IGNORECASE)
     
     # Remove HTML tags
     text = re.sub(r'<[^>]+>', ' ', text)
@@ -70,9 +80,9 @@ def extract_recipe_with_llm(html_or_text: str, url: str) -> Optional[Dict[str, A
     else:
         text = html_or_text
     
-    # Truncate text if too long (keep first 8000 chars to stay within context limits)
-    if len(text) > 8000:
-        text = text[:8000] + "..."
+    # Truncate text if too long (keep first MAX_TEXT_LENGTH chars to stay within context limits)
+    if len(text) > MAX_TEXT_LENGTH:
+        text = text[:MAX_TEXT_LENGTH] + "..."
     
     # Create prompt for the LLM
     prompt = f"""Extract the recipe information from the following text and return it as a JSON object with this exact structure:
