@@ -20,6 +20,9 @@ build/
 app/static/uploads/*
 !app/static/uploads/.gitkeep
 
+# Virtual environment
+.venv/
+
 # Test artifacts
 .pytest_cache/
 .coverage

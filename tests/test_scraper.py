@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from scraper import parse_ingredient, scrape_recipe, validate_url
+from app.scraper import parse_ingredient, scrape_recipe, validate_url
 
 
 class TestValidateUrl:
@@ -125,8 +125,8 @@ class TestParseIngredient:
 class TestScrapeRecipe:
     """Tests for scrape_recipe function."""
     
-    @patch('scraper.requests.get')
-    @patch('scraper.scrape_html')
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
     def test_scrape_recipe_basic(self, mock_scrape_html, mock_requests_get):
         """Test basic recipe scraping."""
         # Mock the HTTP response
@@ -156,8 +156,8 @@ class TestScrapeRecipe:
         assert result["steps"][0]["step_number"] == 1
         assert result["steps"][0]["action"] == "Mix ingredients."
     
-    @patch('scraper.requests.get')
-    @patch('scraper.scrape_html')
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
     def test_scrape_recipe_with_ingredient_distribution(self, mock_scrape_html, mock_requests_get):
         """Test recipe scraping with ingredient distribution to steps."""
         mock_response = MagicMock()
@@ -193,8 +193,8 @@ class TestScrapeRecipe:
         step2_ingredient_names = [ing["ingredient_name"] for ing in result["steps"][1]["ingredients"]]
         assert "milk" in step2_ingredient_names
     
-    @patch('scraper.requests.get')
-    @patch('scraper.scrape_html')
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
     def test_scrape_recipe_no_steps(self, mock_scrape_html, mock_requests_get):
         """Test recipe scraping when no instructions are provided."""
         mock_response = MagicMock()
@@ -217,8 +217,8 @@ class TestScrapeRecipe:
         assert result["steps"][0]["action"] == "Prepare ingredients"
         assert len(result["steps"][0]["ingredients"]) == 1
     
-    @patch('scraper.requests.get')
-    @patch('scraper.scrape_html')
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
     def test_scrape_recipe_yields_parsing(self, mock_scrape_html, mock_requests_get):
         """Test parsing different yield formats."""
         mock_response = MagicMock()
@@ -247,10 +247,10 @@ class TestScrapeRecipe:
             assert result["base_servings"] == expected_servings
     
     @patch.dict('os.environ', {'LLM_ENABLED': 'true'})
-    @patch('scraper.LLM_AVAILABLE', True)
-    @patch('scraper.extract_recipe_with_llm')
-    @patch('scraper.requests.get')
-    @patch('scraper.scrape_html')
+    @patch('app.scraper.LLM_AVAILABLE', True)
+    @patch('app.scraper.extract_recipe_with_llm')
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
     def test_llm_fallback_on_scraper_failure(self, mock_scrape_html, mock_requests_get, mock_llm):
         """Test that LLM fallback is used when recipe-scrapers fails."""
         # Mock HTTP response
@@ -279,8 +279,8 @@ class TestScrapeRecipe:
         assert result["base_servings"] == 6
     
     @patch.dict('os.environ', {'LLM_ENABLED': 'false'})
-    @patch('scraper.requests.get')
-    @patch('scraper.scrape_html')
+    @patch('app.scraper.requests.get')
+    @patch('app.scraper.scrape_html')
     def test_no_llm_fallback_when_disabled(self, mock_scrape_html, mock_requests_get):
         """Test that LLM fallback is not used when disabled."""
         mock_response = MagicMock()

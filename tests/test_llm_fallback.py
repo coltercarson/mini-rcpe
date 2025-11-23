@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 import json
 import requests
 
-from llm_fallback import (
+from app.llm_fallback import (
     clean_html_to_text,
     extract_recipe_with_llm,
     parse_llm_response,
@@ -141,7 +141,7 @@ class TestExtractRecipeWithLlm:
     """Tests for extract_recipe_with_llm function."""
     
     @patch.dict('os.environ', {'LLM_BASE_URL': 'http://test:11434', 'LLM_MODEL': 'test-model'})
-    @patch('llm_fallback.requests.post')
+    @patch('app.llm_fallback.requests.post')
     def test_successful_extraction(self, mock_post):
         """Test successful recipe extraction."""
         # Mock Ollama API response
@@ -166,7 +166,7 @@ class TestExtractRecipeWithLlm:
         assert mock_post.called
     
     @patch.dict('os.environ', {'LLM_BASE_URL': 'http://test:11434'})
-    @patch('llm_fallback.requests.post')
+    @patch('app.llm_fallback.requests.post')
     def test_api_error(self, mock_post):
         """Test handling of API errors."""
         mock_response = MagicMock()
@@ -179,7 +179,7 @@ class TestExtractRecipeWithLlm:
         assert result is None
     
     @patch.dict('os.environ', {'LLM_BASE_URL': 'http://test:11434'})
-    @patch('llm_fallback.requests.post')
+    @patch('app.llm_fallback.requests.post')
     def test_request_timeout(self, mock_post):
         """Test handling of request timeout."""
         mock_post.side_effect = requests.exceptions.Timeout("Request timed out")
@@ -189,7 +189,7 @@ class TestExtractRecipeWithLlm:
         assert result is None
     
     @patch.dict('os.environ', {'LLM_BASE_URL': 'http://test:11434'})
-    @patch('llm_fallback.requests.post')
+    @patch('app.llm_fallback.requests.post')
     def test_html_cleaning(self, mock_post):
         """Test that HTML is cleaned before sending to LLM."""
         mock_response = MagicMock()

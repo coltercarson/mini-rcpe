@@ -6,9 +6,11 @@ Run this to test the LLM extraction without needing Ollama installed.
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'app'))
 
-from llm_fallback import clean_html_to_text, parse_llm_response
+# Add parent directory to path so we can import app module
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from app.llm_fallback import clean_html_to_text, parse_llm_response
 import json
 
 def test_html_cleaning():

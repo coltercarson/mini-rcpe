@@ -1,8 +1,19 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from pathlib import Path
+from unittest.mock import patch
+from starlette.testclient import TestClient
 import os
 
-import schemas
+# Set APP_PASSWORD before importing app
+os.environ.setdefault("APP_PASSWORD", "secret")
+
+from app.main import app
+
+from app import schemas
+
+
+# Base directory
+BASE_DIR = Path(__file__).parent.parent
 
 
 class TestRootEndpoint:
@@ -38,7 +49,7 @@ class TestLoginEndpoint:
     def test_login_success(self, client):
         """Test successful login with default password."""
         # Use default password "secret"
-        response = client.post("/login", data={"password": "secret"}, follow_redirects=False)
+        response = client.post("/login", data={"password": "password"}, follow_redirects=False)
         assert response.status_code == 303
         # Check that the redirect goes to the root
         assert response.headers["location"] == "/"
@@ -217,7 +228,7 @@ class TestRecipeAPIEndpoints:
 class TestScrapeAPIEndpoint:
     """Tests for scrape API endpoint."""
     
-    @patch('main.scraper.scrape_recipe')
+    @patch('app.main.scraper.scrape_recipe')
     def test_scrape_url_valid(self, mock_scrape, client):
         """Test scraping a valid URL."""
         mock_scrape.return_value = {
@@ -240,7 +251,7 @@ class TestScrapeAPIEndpoint:
         assert response.status_code == 400
         assert "URL is required" in response.json()["detail"]
     
-    @patch('main.scraper.scrape_recipe')
+    @patch('app.main.scraper.scrape_recipe')
     def test_scrape_url_error(self, mock_scrape, client):
         """Test scraping with an error."""
         mock_scrape.side_effect = Exception("Scraping failed")

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-import schemas
+from app import schemas
 
 
 class TestStepIngredientBase:

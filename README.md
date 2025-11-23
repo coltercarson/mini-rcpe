@@ -22,6 +22,26 @@ For detailed Docker deployment instructions, see [docs/README-DOCKER.md](docs/RE
 
 # Development
 
+## Running the App Locally
+
+```bash
+pip install -r requirements.txt
+pip install -r requirements-test.txt
+
+cp .env.example .env # or copy manually on Windows
+# adjust ADMIN_PASSWORD, DB_PATH, etc. to suit your environment
+
+# macOS/Linux
+chmod +x run-dev.sh
+./run-dev.sh
+
+# Windows (PowerShell)
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned # (first run only, optional)
+.\run-dev.ps1
+```
+
+The helper scripts (`run-dev.sh` and `run-dev.ps1`) call Uvicorn with `--reload`, automatically load values from a local `.env`, and honour overrides for host/port (use `APP_HOST`/`APP_PORT` or pass parameters directly).
+
 ## Running Tests
 
 This project includes comprehensive unit tests. To run the test suite:
