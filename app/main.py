@@ -9,6 +9,10 @@ from app import models, crud, schemas, scraper
 import os
 import shutil
 import uuid
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -32,6 +36,9 @@ def scrape_url(payload: dict = Body(...)):
         data = scraper.scrape_recipe(url)
         return data
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Recipe scraping failed for {url}: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/upload")

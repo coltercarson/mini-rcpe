@@ -6,6 +6,11 @@ import re
 from urllib.parse import urlparse
 from typing import Optional
 import ipaddress
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 UPLOAD_DIR = "app/static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -17,14 +22,21 @@ HTTP_TIMEOUT = 30  # Timeout for HTTP requests in seconds
 try:
     from app.llm_fallback import extract_recipe_with_llm
     LLM_AVAILABLE = True
-except ImportError:
+    logger.info("LLM fallback module loaded successfully")
+except Exception as e:
     LLM_AVAILABLE = False
     extract_recipe_with_llm = None
+    logger.warning(f"LLM fallback not available: {e}")
 
 
 def is_llm_enabled() -> bool:
     """Check if LLM fallback is enabled and available."""
-    return LLM_AVAILABLE and os.getenv("LLM_ENABLED", "false").lower() == "true"
+    enabled = LLM_AVAILABLE and os.getenv("LLM_ENABLED", "false").lower() == "true"
+    if not LLM_AVAILABLE:
+        logger.debug("LLM not available (import failed)")
+    elif not os.getenv("LLM_ENABLED", "false").lower() == "true":
+        logger.debug(f"LLM not enabled (LLM_ENABLED={os.getenv('LLM_ENABLED', 'false')})")
+    return enabled
 
 
 def validate_url(url: str) -> None:
@@ -181,20 +193,37 @@ def scrape_recipe(url: str, use_llm_fallback: bool = True) -> dict:
         raise Exception(f"Failed to fetch URL: {str(e)}")
     
     # Try recipe-scrapers first
+    logger.info(f"Attempting to scrape recipe from: {url}")
     try:
         scraper = scrape_html(html, org_url=url)
+        logger.info("Successfully scraped recipe using recipe-scrapers")
     except Exception as scraper_error:
+        logger.warning(f"Recipe-scrapers failed: {scraper_error}")
+        
+        # Check if LLM fallback is available
+        llm_enabled = is_llm_enabled()
+        logger.info(f"LLM fallback check - use_llm_fallback={use_llm_fallback}, is_llm_enabled={llm_enabled}")
+        
         # If recipe-scrapers fails, try LLM fallback
-        if use_llm_fallback and is_llm_enabled():
-            print(f"Recipe-scrapers failed: {scraper_error}. Attempting LLM fallback...")
-            llm_result = extract_recipe_with_llm(html, url)
-            if llm_result:
-                print("Successfully extracted recipe using LLM fallback")
-                return llm_result
-            else:
-                raise Exception(f"Both recipe-scrapers and LLM fallback failed. Original error: {scraper_error}")
+        if use_llm_fallback and llm_enabled:
+            logger.info("Attempting LLM fallback...")
+            try:
+                llm_result = extract_recipe_with_llm(html, url)
+                if llm_result:
+                    logger.info("Successfully extracted recipe using LLM fallback")
+                    return llm_result
+                else:
+                    logger.error("LLM returned None")
+                    raise Exception(f"Both recipe-scrapers and LLM fallback failed. Recipe-scrapers error: {scraper_error}. LLM returned no result.")
+            except Exception as llm_error:
+                logger.error(f"LLM extraction error: {llm_error}")
+                raise Exception(f"Both recipe-scrapers and LLM fallback failed. Recipe-scrapers error: {scraper_error}. LLM error: {llm_error}")
         else:
             # Re-raise original error if LLM not available/enabled
+            if not use_llm_fallback:
+                logger.info("LLM fallback disabled by parameter")
+            elif not llm_enabled:
+                logger.info("LLM fallback not enabled or not available")
             raise Exception(f"Recipe extraction failed: {scraper_error}")
     
     # Extract data

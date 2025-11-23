@@ -115,25 +115,27 @@ class TestParseLlmResponse:
         assert not result["steps"][0]["action"].startswith("1.")
     
     def test_ingredient_distribution(self):
-        """Test that ingredients are distributed to steps."""
+        """Test that ingredients are distributed to steps as list of lists."""
         llm_output = json.dumps({
             "title": "Pancakes",
             "total_time_minutes": 20,
             "base_servings": 4,
-            "ingredients": ["2 cups flour", "2 eggs", "1 cup milk"],
+            "ingredients": [["2 cups flour", "2 eggs"], ["1 cup milk"]],
             "instructions": "Mix flour and eggs.\nAdd milk and stir."
         })
         
         result = parse_llm_response(llm_output)
         
         assert result is not None
-        # Step 1 should have flour and eggs
+        # Step 1 should have flour and eggs (from ingredients[0])
         step1_names = [ing["ingredient_name"] for ing in result["steps"][0]["ingredients"]]
+        assert len(step1_names) == 2
         assert any("flour" in name.lower() for name in step1_names)
         assert any("eggs" in name.lower() for name in step1_names)
         
-        # Step 2 should have milk
+        # Step 2 should have milk (from ingredients[1])
         step2_names = [ing["ingredient_name"] for ing in result["steps"][1]["ingredients"]]
+        assert len(step2_names) == 1
         assert any("milk" in name.lower() for name in step2_names)
 
 

@@ -6,14 +6,11 @@ import os
 import re
 import json
 import requests
+import logging
 from typing import Optional, Dict, Any
 
-# Import with relative import to avoid circular dependencies
-try:
-    from app.scraper import parse_ingredient
-except ImportError:
-    from scraper import parse_ingredient
-
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Configuration constants
 MAX_TEXT_LENGTH = 8000  # Maximum text length to send to LLM (to stay within context limits)
@@ -85,30 +82,38 @@ def extract_recipe_with_llm(html_or_text: str, url: str) -> Optional[Dict[str, A
         text = text[:MAX_TEXT_LENGTH] + "..."
     
     # Create prompt for the LLM
-    prompt = f"""Extract the recipe information from the following text and return it as a JSON object with this exact structure:
+    prompt = f"""You are a recipe extraction assistant. Read the following recipe text and extract the recipe information.
+
+IMPORTANT: Do NOT use the example values. Extract the ACTUAL recipe information from the text below.
+
+Return a JSON object with this structure:
 {{
-  "title": "Recipe Title",
-  "total_time_minutes": 30,
-  "base_servings": 4,
-  "ingredients": ["ingredient 1", "ingredient 2"],
-  "instructions": "Step 1. Do this.\\nStep 2. Do that."
+  "title": "actual recipe title from the text",
+  "total_time_minutes": actual_number_or_null,
+  "base_servings": actual_number,
+  "ingredients": [["actual ingredient from step 1"], ["actual ingredient from step 2"]],
+  "instructions": "Actual step 1 instruction.\\nActual step 2 instruction."
 }}
 
-Guidelines:
-- Extract the recipe title
-- Extract total cooking/preparation time in minutes (null if not found)
-- Extract number of servings (default to 1 if not found)
-- List all ingredients as strings (with amounts and units if present)
-- Combine all cooking instructions into a single string, separated by newlines
-- Return ONLY the JSON object, no other text
-- If you cannot find recipe information, return null
+Requirements:
+1. Extract the REAL recipe title from the text
+2. Find the total time in minutes (or null if not mentioned)
+3. Find how many servings (or use 1 if not mentioned)
+4. Group ingredients by cooking step as lists of lists
+5. Extract ALL instruction steps, separated by newlines
+6. Return ONLY valid JSON, no extra text
+7. If no recipe found, return: null
 
-Recipe text:
+Recipe text to extract from:
 {text}
 
-JSON:"""
+JSON output:"""
     
     try:
+        logger.info(f"Calling LLM API at {config['base_url']} with model {config['model']}")
+        if "1b" in config['model'].lower():
+            logger.warning("Using 1B model - results may be less accurate. Consider using llama3.2 (3B) or larger for better extraction.")
+        
         # Call Ollama API
         response = requests.post(
             f"{config['base_url']}/api/generate",
@@ -118,33 +123,40 @@ JSON:"""
                 "stream": False,
                 "options": {
                     "temperature": 0.1,  # Low temperature for more consistent output
-                    "num_predict": 2000,  # Limit response length
+                    "num_predict": 3000,  # Limit response length
+                    "num_ctx": 4096,  # Context window size
                 }
             },
             timeout=config["timeout"]
         )
         
         if response.status_code != 200:
-            print(f"LLM API error: {response.status_code} - {response.text}")
+            error_msg = f"LLM API error: {response.status_code} - {response.text}"
+            logger.error(error_msg)
             return None
         
+        logger.info("LLM API call successful, parsing response...")
         result = response.json()
         llm_output = result.get("response", "").strip()
+        
+        # Log the raw LLM output for debugging
+        logger.debug(f"Raw LLM output: {llm_output[:500]}...")
         
         # Parse the LLM's JSON response
         recipe_data = parse_llm_response(llm_output)
         
         if recipe_data:
+            logger.info(f"Successfully parsed recipe: {recipe_data.get('title', 'Unknown')}")
             return recipe_data
         else:
-            print(f"Failed to parse LLM response: {llm_output[:200]}...")
+            logger.error(f"Failed to parse LLM response: {llm_output[:200]}...")
             return None
             
     except requests.exceptions.RequestException as e:
-        print(f"LLM request failed: {e}")
+        logger.error(f"LLM request failed: {e}")
         return None
     except Exception as e:
-        print(f"Unexpected error in LLM extraction: {e}")
+        logger.error(f"Unexpected error in LLM extraction: {e}")
         return None
 
 
@@ -159,6 +171,9 @@ def parse_llm_response(llm_output: str) -> Optional[Dict[str, Any]]:
         Dictionary with recipe data in scraper.scrape_recipe() format
         or None if parsing fails
     """
+    # Import here to avoid circular dependency
+    from app.scraper import parse_ingredient
+    
     try:
         # Try to extract JSON from the response (in case LLM added extra text)
         json_match = re.search(r'\{.*\}', llm_output, re.DOTALL)
@@ -178,7 +193,7 @@ def parse_llm_response(llm_output: str) -> Optional[Dict[str, Any]]:
         title = llm_data.get("title", "Untitled Recipe")
         total_time = llm_data.get("total_time_minutes")
         base_servings = llm_data.get("base_servings", 1)
-        ingredients = llm_data.get("ingredients", [])
+        ingredients = llm_data.get("ingredients", [[]])
         instructions = llm_data.get("instructions", "")
         
         # Parse instructions into steps
@@ -188,46 +203,31 @@ def parse_llm_response(llm_output: str) -> Optional[Dict[str, Any]]:
             for i, action in enumerate(raw_steps):
                 # Remove step numbers if present (e.g., "1.", "Step 1:", etc.)
                 action = re.sub(r'^(\d+\.|\d+\)|\bStep\s+\d+:?)\s*', '', action, flags=re.IGNORECASE)
+                
+                # Get ingredients for this step from the list of lists
+                step_ingredients = []
+                if isinstance(ingredients, list) and len(ingredients) > i:
+                    step_ing_list = ingredients[i] if isinstance(ingredients[i], list) else []
+                    step_ingredients = [parse_ingredient(ing_str) for ing_str in step_ing_list if ing_str]
+                
                 steps.append({
                     "step_number": i + 1,
                     "action": action,
                     "time_minutes": None,
-                    "ingredients": []
+                    "ingredients": step_ingredients
                 })
         
-        # Distribute ingredients to steps based on keyword matching (same logic as scraper.py)
-        if steps and ingredients:
-            parsed_ingredients = [parse_ingredient(ing_str) for ing_str in ingredients]
-            assigned_ingredients = set()
-            
-            for step in steps:
-                action_lower = step["action"].lower()
-                
-                for idx, parsed_ing in enumerate(parsed_ingredients):
-                    if idx in assigned_ingredients:
-                        continue
-                    
-                    ing_name = parsed_ing["ingredient_name"].lower()
-                    common_words = {'the', 'a', 'an', 'of', 'to', 'for', 'and', 'or', 'in', 'on', 'with'}
-                    ing_keywords = [word for word in ing_name.split() if word not in common_words and len(word) > 2]
-                    
-                    if any(keyword in action_lower for keyword in ing_keywords):
-                        step["ingredients"].append(parsed_ing)
-                        assigned_ingredients.add(idx)
-            
-            # Add unassigned ingredients to first step
-            for idx, parsed_ing in enumerate(parsed_ingredients):
-                if idx not in assigned_ingredients:
-                    steps[0]["ingredients"].append(parsed_ing)
-        
-        elif ingredients:
-            # If no steps but have ingredients, create a dummy step
-            steps.append({
-                "step_number": 1,
-                "action": "Prepare ingredients",
-                "time_minutes": None,
-                "ingredients": [parse_ingredient(i) for i in ingredients]
-            })
+        # If no steps but have ingredients, create steps from ingredient lists
+        elif ingredients and isinstance(ingredients, list):
+            for i, step_ing_list in enumerate(ingredients):
+                if isinstance(step_ing_list, list) and step_ing_list:
+                    parsed_step_ingredients = [parse_ingredient(ing_str) for ing_str in step_ing_list if ing_str]
+                    steps.append({
+                        "step_number": i + 1,
+                        "action": f"Step {i + 1}",
+                        "time_minutes": None,
+                        "ingredients": parsed_step_ingredients
+                    })
         
         # Return in the same format as scraper.scrape_recipe()
         return {

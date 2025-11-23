@@ -167,18 +167,20 @@ POST /api/scrape
 
 ## Performance Considerations
 
-- **Model Size**: Smaller models (llama3.2:1b) are faster but may be less accurate
+- **Model Size**: Smaller models (llama3.2:1b) are faster but **significantly less accurate** at recipe extraction
 - **Response Time**: LLM extraction typically takes 10-30 seconds depending on model and hardware
 - **Resource Usage**: LLMs require significant CPU/RAM (or GPU if available)
 - **Caching**: Consider implementing caching for frequently accessed recipes
 
 ### Recommended Models by Use Case
 
-| Model | Size | Speed | Accuracy | Use Case |
-|-------|------|-------|----------|----------|
-| llama3.2:1b | ~1GB | Fast | Good | Development/Testing |
-| llama3.2 | ~2GB | Medium | Better | Production (balanced) |
-| mistral | ~4GB | Slow | Best | High accuracy needs |
+| Model | Size | Speed | Accuracy | Use Case | Notes |
+|-------|------|-------|----------|----------|-------|
+| llama3.2:1b | ~1GB | Fast | Poor | Testing only | Often misses ingredients/steps |
+| llama3.2 | ~2GB | Medium | Good | Production (recommended) | Best balance |
+| mistral | ~4GB | Slow | Better | High accuracy needs | Requires more RAM |
+
+**Important**: The 1B model often produces incomplete extractions (missing ingredients, combining all steps into one). For production use, allocate at least 4GB RAM and use the standard `llama3.2` (3B) model.
 
 ## Troubleshooting
 

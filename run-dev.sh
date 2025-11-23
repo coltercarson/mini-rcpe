@@ -15,4 +15,4 @@ fi
 HOST_VALUE="${HOST:-${APP_HOST:-0.0.0.0}}"
 PORT_VALUE="${PORT:-${APP_PORT:-8000}}"
 
-python -m uvicorn app.main:app --reload --host "$HOST_VALUE" --port "$PORT_VALUE"
+python3 -m uvicorn app.main:app --reload --host "$HOST_VALUE" --port "$PORT_VALUE"

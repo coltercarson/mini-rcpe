@@ -67,18 +67,16 @@ def test_llm_response_parsing():
     """Test LLM response parsing."""
     print("Testing LLM response parsing...")
     
-    # Simulate an LLM response
+    # Simulate an LLM response with ingredients as list of lists
     llm_response = {
         "title": "Chocolate Chip Cookies",
         "total_time_minutes": 25,
         "base_servings": 24,
         "ingredients": [
-            "2 1/4 cups all-purpose flour",
-            "1 tsp baking soda",
-            "1 cup butter, softened",
-            "3/4 cup granulated sugar",
-            "2 large eggs",
-            "2 cups chocolate chips"
+            ["2 1/4 cups all-purpose flour", "1 tsp baking soda"],
+            ["1 cup butter, softened", "3/4 cup granulated sugar"],
+            ["2 large eggs"],
+            ["2 cups chocolate chips"]
         ],
         "instructions": """1. Preheat oven to 375°F.
 2. Mix flour and baking soda in a bowl.
@@ -102,26 +100,19 @@ def test_llm_response_parsing():
     
     # Check first step
     first_step = result["steps"][0]
-    assert first_step["step_number"] == 1
     assert "Preheat oven" in first_step["action"]
     assert not first_step["action"].startswith("1.")  # Step number should be removed
     
-    # Check that ingredients were parsed
-    total_ingredients = sum(len(step["ingredients"]) for step in result["steps"])
-    assert total_ingredients == 6  # All ingredients should be distributed
+    # Check that ingredients are assigned to steps
+    step2_ingredients = result["steps"][1]["ingredients"]
+    assert len(step2_ingredients) == 2
+    assert any("flour" in ing["ingredient_name"].lower() for ing in step2_ingredients)
     
     print("✓ LLM response parsing works correctly")
     print(f"  Recipe: {result['title']}")
     print(f"  Steps: {len(result['steps'])}")
-    print(f"  Total ingredients: {total_ingredients}")
-    
-    # Show first step with ingredients
-    first_step_with_ingredients = next((s for s in result["steps"] if s["ingredients"]), None)
-    if first_step_with_ingredients:
-        print(f"  Example step with ingredients:")
-        print(f"    Step {first_step_with_ingredients['step_number']}: {first_step_with_ingredients['action'][:50]}...")
-        for ing in first_step_with_ingredients["ingredients"][:2]:
-            print(f"      - {ing['ingredient_name']} ({ing['amount']} {ing['unit'] or ''})")
+    print(f"  Example step: {result['steps'][0]['action']}")
+    print(f"  Step 2 ingredients: {len(result['steps'][1]['ingredients'])}")
     print()
 
 def test_edge_cases():
@@ -139,7 +130,7 @@ def test_edge_cases():
     print("✓ Handles invalid JSON correctly")
     
     # Test JSON with extra text
-    llm_output = 'Here is the recipe: {"title": "Test", "total_time_minutes": 10, "base_servings": 1, "ingredients": ["salt"], "instructions": "Cook it."} Hope that helps!'
+    llm_output = 'Here is the recipe: {"title": "Test", "total_time_minutes": 10, "base_servings": 1, "ingredients": [["salt"]], "instructions": "Cook it."} Hope that helps!'
     result = parse_llm_response(llm_output)
     assert result is not None
     assert result["title"] == "Test"
@@ -150,12 +141,13 @@ def test_edge_cases():
         "title": "Simple Recipe",
         "total_time_minutes": None,
         "base_servings": 1,
-        "ingredients": ["1 cup water"],
+        "ingredients": [["1 cup water"]],
         "instructions": ""
     })
     result = parse_llm_response(llm_output)
     assert result is not None
     assert result["title"] == "Simple Recipe"
+    assert len(result["steps"]) == 1
     print("✓ Handles recipe with no instructions")
     print()
 
