@@ -15,9 +15,9 @@ Deploy Mini-RCPE using Docker on a Linux server in 3 simple steps.
    cd mini-rcpe
    ```
 
-2. **Edit docker-compose.yml to configure:**
+2. **Edit docker/docker-compose.yml to configure:**
    ```bash
-   nano docker-compose.yml
+   nano docker/docker-compose.yml
    ```
    
    Change these settings:
@@ -26,7 +26,7 @@ Deploy Mini-RCPE using Docker on a Linux server in 3 simple steps.
 
 3. **Start the application:**
    ```bash
-   docker-compose up -d
+   docker-compose -f docker/docker-compose.yml up -d
    ```
 
 4. **Access your recipes:**
@@ -35,7 +35,7 @@ Deploy Mini-RCPE using Docker on a Linux server in 3 simple steps.
 
 ## Configuration
 
-All configuration is done directly in `docker-compose.yml`:
+All configuration is done directly in `docker/docker-compose.yml`:
 
 ```yaml
 environment:
@@ -53,26 +53,26 @@ ports:
 
 ```bash
 # Start
-docker-compose up -d
+docker-compose -f docker/docker-compose.yml up -d
 
 # Stop
-docker-compose down
+docker-compose -f docker/docker-compose.yml down
 
 # View logs
-docker-compose logs -f
+docker-compose -f docker/docker-compose.yml logs -f
 
 # Restart
-docker-compose restart
+docker-compose -f docker/docker-compose.yml restart
 
 # Update to latest version
-git pull && docker-compose up -d --build
+git pull && docker-compose -f docker/docker-compose.yml up -d --build
 ```
 
 ## Data Persistence
 
 Your data is automatically saved in:
 - **Database**: `./data/rcpe.db`
-- **Images**: `./static/uploads/`
+- **Images**: `./app/static/uploads/`
 
 Data persists across container restarts and updates.
 
@@ -85,7 +85,7 @@ To backup your data:
 cp data/rcpe.db rcpe.db.backup
 
 # Backup uploads
-tar -czf uploads-backup.tar.gz static/uploads/
+tar -czf uploads-backup.tar.gz app/static/uploads/
 ```
 
 ## Reverse Proxy Setup (Optional)
@@ -129,7 +129,7 @@ caddy run
 ### Container won't start
 ```bash
 # Check logs
-docker-compose logs
+docker-compose -f docker/docker-compose.yml logs
 
 # Check if port is already in use
 sudo netstat -tulpn | grep 8000
@@ -138,22 +138,22 @@ sudo netstat -tulpn | grep 8000
 ### Permission issues with volumes
 ```bash
 # Fix ownership
-sudo chown -R 1000:1000 data static/uploads
+sudo chown -R 1000:1000 data app/static/uploads
 ```
 
 ### Database locked errors
 ```bash
 # Restart the container
-docker-compose restart
+docker-compose -f docker/docker-compose.yml restart
 ```
 
 ## Security Recommendations
 
-1. **Change the default password** in `docker-compose.yml`
+1. **Change the default password** in `docker/docker-compose.yml`
 2. **Use a reverse proxy** with HTTPS in production
 3. **Restrict port access** using firewall rules
 4. **Regular backups** of the database and uploads
-5. **Keep Docker images updated**: `docker-compose pull && docker-compose up -d`
+5. **Keep Docker images updated**: `docker-compose -f docker/docker-compose.yml pull && docker-compose -f docker/docker-compose.yml up -d`
 
 ## Updating
 
@@ -164,7 +164,7 @@ To update to a new version:
 git pull
 
 # Rebuild and restart
-docker-compose up -d --build
+docker-compose -f docker/docker-compose.yml up -d --build
 ```
 
 Your data will be preserved during updates.
@@ -175,10 +175,10 @@ To completely remove the application:
 
 ```bash
 # Stop and remove containers
-docker-compose down
+docker-compose -f docker/docker-compose.yml down
 
 # Remove data (WARNING: This deletes all recipes!)
-rm -rf data static/uploads
+rm -rf data app/static/uploads
 
 # Remove Docker image
 docker rmi mini-rcpe-web
