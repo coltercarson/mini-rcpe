@@ -78,8 +78,12 @@ def extract_recipe_with_llm(html_or_text: str, url: str) -> Optional[Dict[str, A
         text = html_or_text
     
     # Truncate text if too long (keep first MAX_TEXT_LENGTH chars to stay within context limits)
+    original_length = len(text)
     if len(text) > MAX_TEXT_LENGTH:
         text = text[:MAX_TEXT_LENGTH] + "..."
+        logger.info(f"Text truncated from {original_length} to {MAX_TEXT_LENGTH} chars")
+    else:
+        logger.info(f"Sending {original_length} chars to LLM")
     
     # Create prompt for the LLM
     prompt = f"""You are a recipe extraction assistant. Read the following recipe text and extract the recipe information.
