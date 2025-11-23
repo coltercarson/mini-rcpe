@@ -26,19 +26,32 @@ mini-rcpe/
 │
 ├── tests/                 # Test suite
 │   ├── __init__.py
-│   ├── test_scrape.py     # Scraper tests
+│   ├── conftest.py        # Test configuration and fixtures
+│   ├── test_crud.py       # CRUD operation tests
+│   ├── test_main.py       # FastAPI endpoint tests
+│   ├── test_schemas.py    # Schema validation tests
+│   ├── test_scraper.py    # Scraper tests
+│   ├── test_scrape.py     # Legacy scraper tests
 │   ├── test_multi_recipe.py
 │   └── test_ingredient_distribution.py
 │
+├── docker/                # Docker configuration
+│   ├── Dockerfile         # Container build configuration
+│   ├── docker-compose.yml # Multi-container deployment
+│   ├── .dockerignore      # Docker ignore rules
+│   └── deploy.sh          # Deployment helper script
+│
+├── docs/                  # Documentation
+│   ├── README-DOCKER.md   # Docker deployment guide
+│   └── STRUCTURE.md       # This file
+│
 ├── README.md              # Main documentation
-├── README-DOCKER.md       # Docker deployment guide
+├── TESTING.md             # Testing documentation
 ├── requirements.txt       # Python dependencies
-├── Dockerfile             # Container build configuration
-├── docker-compose.yml     # Multi-container deployment
-├── deploy.sh              # Deployment helper script
+├── requirements-test.txt  # Test dependencies
+├── pytest.ini             # Pytest configuration
 ├── .env.example           # Environment variable template
 ├── .gitignore             # Git ignore rules
-├── .dockerignore          # Docker ignore rules
 └── mini-rcpe-overview.md  # Project design document
 ```
 

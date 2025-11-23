@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   web:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     ports:
       # Change the port here (format: "host_port:8000")
       - "8000:8000"
@@ -14,7 +16,7 @@ services:
       - DB_PATH=/app/data/rcpe.db
     volumes:
       # Persist database
-      - ./data:/app/data
+      - ../data:/app/data
       # Persist uploaded images
-      - ./app/static/uploads:/app/app/static/uploads
+      - ../app/static/uploads:/app/app/static/uploads
     restart: unless-stopped

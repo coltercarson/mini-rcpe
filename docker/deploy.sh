@@ -29,8 +29,8 @@ echo "Let's configure your Mini-RCPE instance:"
 echo ""
 
 # Admin Password
-if [ -f .env ] && grep -q "ADMIN_PASSWORD" .env; then
-    EXISTING_PASSWORD=$(grep ADMIN_PASSWORD .env | cut -d '=' -f2)
+if [ -f ../.env ] && grep -q "ADMIN_PASSWORD" ../.env; then
+    EXISTING_PASSWORD=$(grep ADMIN_PASSWORD ../.env | cut -d '=' -f2)
     echo "Existing admin password found: $EXISTING_PASSWORD"
     read -p "Keep this password? (y/n) [y]: " KEEP_PASSWORD
     KEEP_PASSWORD=${KEEP_PASSWORD:-y}
@@ -52,8 +52,8 @@ else
 fi
 
 # Port Configuration
-if [ -f .env ] && grep -q "APP_PORT" .env; then
-    EXISTING_PORT=$(grep APP_PORT .env | cut -d '=' -f2)
+if [ -f ../.env ] && grep -q "APP_PORT" ../.env; then
+    EXISTING_PORT=$(grep APP_PORT ../.env | cut -d '=' -f2)
     read -p "Port to expose [$EXISTING_PORT]: " APP_PORT
     APP_PORT=${APP_PORT:-$EXISTING_PORT}
 else
@@ -62,8 +62,8 @@ else
 fi
 
 # Database Location
-if [ -f .env ] && grep -q "DB_PATH" .env; then
-    EXISTING_DB=$(grep DB_PATH .env | cut -d '=' -f2)
+if [ -f ../.env ] && grep -q "DB_PATH" ../.env; then
+    EXISTING_DB=$(grep DB_PATH ../.env | cut -d '=' -f2)
     read -p "Database path [$EXISTING_DB]: " DB_PATH
     DB_PATH=${DB_PATH:-$EXISTING_DB}
 else
@@ -87,7 +87,7 @@ fi
 
 # Create/update .env file
 echo "Updating configuration..."
-cat > .env << EOF
+cat > ../.env << EOF
 # Mini-RCPE Configuration
 ADMIN_PASSWORD=$ADMIN_PASSWORD
 APP_PORT=$APP_PORT
@@ -99,8 +99,8 @@ echo ""
 
 # Create necessary directories
 echo "Creating data directories..."
-mkdir -p data
-mkdir -p static/uploads
+mkdir -p ../data
+mkdir -p ../app/static/uploads
 echo "✓ Directories created"
 echo ""
 
@@ -110,9 +110,9 @@ echo "This may take a few minutes on first run..."
 echo ""
 
 if command -v docker-compose &> /dev/null; then
-    docker-compose up -d --build
+    docker-compose -f docker/docker-compose.yml up -d --build
 else
-    docker compose up -d --build
+    docker compose -f docker/docker-compose.yml up -d --build
 fi
 
 echo ""
@@ -133,9 +133,9 @@ echo ""
 echo "Admin Password: $ADMIN_PASSWORD"
 echo ""
 echo "Useful commands:"
-echo "  View logs:    docker-compose logs -f"
-echo "  Stop:         docker-compose down"
-echo "  Restart:      docker-compose restart"
-echo "  Update:       git pull && docker-compose up -d --build"
+echo "  View logs:    docker-compose -f docker/docker-compose.yml logs -f"
+echo "  Stop:         docker-compose -f docker/docker-compose.yml down"
+echo "  Restart:      docker-compose -f docker/docker-compose.yml restart"
+echo "  Update:       git pull && docker-compose -f docker/docker-compose.yml up -d --build"
 echo ""
-echo "For more information, see README-DOCKER.md"
+echo "For more information, see docs/README-DOCKER.md"
