@@ -201,3 +201,54 @@ class TestScrapeRecipe:
             mock_scraper.yields.return_value = yields_text
             result = scrape_recipe("http://example.com/test")
             assert result["base_servings"] == expected_servings
+    
+    @patch.dict('os.environ', {'LLM_ENABLED': 'true'})
+    @patch('scraper.LLM_AVAILABLE', True)
+    @patch('scraper.extract_recipe_with_llm')
+    @patch('scraper.requests.get')
+    @patch('scraper.scrape_html')
+    def test_llm_fallback_on_scraper_failure(self, mock_scrape_html, mock_requests_get, mock_llm):
+        """Test that LLM fallback is used when recipe-scrapers fails."""
+        # Mock HTTP response
+        mock_response = MagicMock()
+        mock_response.text = "<html>Recipe content</html>"
+        mock_response.raise_for_status = MagicMock()
+        mock_requests_get.return_value = mock_response
+        
+        # Mock recipe-scrapers to fail
+        mock_scrape_html.side_effect = Exception("Unsupported website")
+        
+        # Mock LLM to succeed
+        mock_llm.return_value = {
+            "title": "LLM Extracted Recipe",
+            "total_time_minutes": 45,
+            "base_servings": 6,
+            "image_filename": None,
+            "steps": [{"step_number": 1, "action": "Test", "time_minutes": None, "ingredients": []}]
+        }
+        
+        result = scrape_recipe("http://example.com/unsupported")
+        
+        # Verify LLM was called
+        assert mock_llm.called
+        assert result["title"] == "LLM Extracted Recipe"
+        assert result["base_servings"] == 6
+    
+    @patch.dict('os.environ', {'LLM_ENABLED': 'false'})
+    @patch('scraper.requests.get')
+    @patch('scraper.scrape_html')
+    def test_no_llm_fallback_when_disabled(self, mock_scrape_html, mock_requests_get):
+        """Test that LLM fallback is not used when disabled."""
+        mock_response = MagicMock()
+        mock_response.text = "<html>Recipe content</html>"
+        mock_response.raise_for_status = MagicMock()
+        mock_requests_get.return_value = mock_response
+        
+        # Mock recipe-scrapers to fail
+        mock_scrape_html.side_effect = Exception("Unsupported website")
+        
+        # Should raise exception without trying LLM
+        with pytest.raises(Exception) as exc_info:
+            scrape_recipe("http://example.com/unsupported")
+        
+        assert "Recipe extraction failed" in str(exc_info.value)
