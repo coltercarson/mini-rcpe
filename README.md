@@ -1,5 +1,7 @@
 Online recipes are pretty awful - use this tool to store recipes in a clean and efficient manner with no ads/clutter.
 
+**[📺 View Live Demo](https://coltercarson.github.io/mini-rcpe/)**
+
 # Features
 
 - **Recipe Scraping**: Automatically extract recipes from thousands of websites using [recipe-scrapers](https://github.com/hhursev/recipe-scraper)
