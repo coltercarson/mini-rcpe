@@ -12,6 +12,8 @@ def create_recipe(db: Session, recipe: schemas.RecipeCreate):
         title=recipe.title,
         total_time_minutes=recipe.total_time_minutes,
         base_servings=recipe.base_servings,
+        recipe_mode=recipe.recipe_mode,
+        dough_weight=recipe.dough_weight,
         image_filename=recipe.image_filename
     )
     db.add(db_recipe)
@@ -36,7 +38,8 @@ def create_recipe(db: Session, recipe: schemas.RecipeCreate):
                 step_id=db_step.id,
                 ingredient_name=ing_data.ingredient_name,
                 amount=ing_data.amount,
-                unit=ing_data.unit
+                unit=ing_data.unit,
+                baker_percentage=ing_data.baker_percentage
             )
             db.add(db_ing)
     
@@ -53,6 +56,8 @@ def update_recipe(db: Session, recipe_id: int, recipe_data: schemas.RecipeCreate
     db_recipe.title = recipe_data.title
     db_recipe.total_time_minutes = recipe_data.total_time_minutes
     db_recipe.base_servings = recipe_data.base_servings
+    db_recipe.recipe_mode = recipe_data.recipe_mode
+    db_recipe.dough_weight = recipe_data.dough_weight
     db_recipe.image_filename = recipe_data.image_filename
     
     # Delete existing steps (cascade will handle ingredients)
@@ -78,7 +83,8 @@ def update_recipe(db: Session, recipe_id: int, recipe_data: schemas.RecipeCreate
                 step_id=db_step.id,
                 ingredient_name=ing_data.ingredient_name,
                 amount=ing_data.amount,
-                unit=ing_data.unit
+                unit=ing_data.unit,
+                baker_percentage=ing_data.baker_percentage
             )
             db.add(db_ing)
             
