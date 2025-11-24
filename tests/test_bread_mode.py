@@ -241,3 +241,146 @@ class TestBreadModeSchemas:
         
         assert recipe.recipe_mode == "normal"
         assert recipe.dough_weight is None
+
+
+class TestBakerPercentageCalculations:
+    """Tests for proper Baker's percentage calculations."""
+    
+    def test_baker_percentage_with_single_flour(self, test_db):
+        """Test that baker's percentage uses flour as 100% base."""
+        recipe_data = {
+            "title": "Basic Sourdough",
+            "recipe_mode": "bread",
+            "dough_weight": 1000.0,
+            "base_servings": 1,
+            "steps": [
+                {
+                    "step_number": 1,
+                    "action": "Mix all ingredients",
+                    "ingredients": [
+                        {
+                            "ingredient_name": "bread flour",
+                            "amount": 588.2,
+                            "unit": "g",
+                            "baker_percentage": 100.0  # Flour is always 100%
+                        },
+                        {
+                            "ingredient_name": "water",
+                            "amount": 382.4,
+                            "unit": "g",
+                            "baker_percentage": 65.0  # 65% hydration
+                        },
+                        {
+                            "ingredient_name": "salt",
+                            "amount": 11.8,
+                            "unit": "g",
+                            "baker_percentage": 2.0  # 2% salt
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        recipe_create = schemas.RecipeCreate(**recipe_data)
+        result = crud.create_recipe(test_db, recipe_create)
+        
+        assert result.recipe_mode == "bread"
+        # Verify flour is at 100%
+        flour = result.steps[0].ingredients[0]
+        assert flour.baker_percentage == 100.0
+        # Verify other ingredients are relative to flour
+        water = result.steps[0].ingredients[1]
+        assert water.baker_percentage == 65.0
+        salt = result.steps[0].ingredients[2]
+        assert salt.baker_percentage == 2.0
+    
+    def test_baker_percentage_with_multiple_flours(self, test_db):
+        """Test baker's percentage with multiple flour types."""
+        recipe_data = {
+            "title": "Mixed Flour Bread",
+            "recipe_mode": "bread",
+            "dough_weight": 1200.0,
+            "base_servings": 1,
+            "steps": [
+                {
+                    "step_number": 1,
+                    "action": "Combine flours and water",
+                    "ingredients": [
+                        {
+                            "ingredient_name": "white flour",
+                            "amount": 400.0,
+                            "unit": "g",
+                            "baker_percentage": 50.0  # 50% of total flour
+                        },
+                        {
+                            "ingredient_name": "whole wheat flour",
+                            "amount": 400.0,
+                            "unit": "g",
+                            "baker_percentage": 50.0  # 50% of total flour
+                        },
+                        {
+                            "ingredient_name": "water",
+                            "amount": 560.0,
+                            "unit": "g",
+                            "baker_percentage": 70.0  # 70% hydration
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        recipe_create = schemas.RecipeCreate(**recipe_data)
+        result = crud.create_recipe(test_db, recipe_create)
+        
+        # Verify both flours sum to 100% in baker's percentage
+        white_flour = result.steps[0].ingredients[0]
+        wheat_flour = result.steps[0].ingredients[1]
+        water = result.steps[0].ingredients[2]
+        
+        assert white_flour.baker_percentage == 50.0
+        assert wheat_flour.baker_percentage == 50.0
+        assert water.baker_percentage == 70.0
+        
+        # Total flour percentage should be 100%
+        total_flour_percentage = white_flour.baker_percentage + wheat_flour.baker_percentage
+        assert total_flour_percentage == 100.0
+    
+    def test_hydration_calculation(self, test_db):
+        """Test that hydration can be calculated from ingredients."""
+        recipe_data = {
+            "title": "High Hydration Bread",
+            "recipe_mode": "bread",
+            "dough_weight": 900.0,
+            "base_servings": 1,
+            "steps": [
+                {
+                    "step_number": 1,
+                    "action": "Mix",
+                    "ingredients": [
+                        {
+                            "ingredient_name": "flour",
+                            "amount": 500.0,
+                            "unit": "g",
+                            "baker_percentage": 100.0
+                        },
+                        {
+                            "ingredient_name": "water",
+                            "amount": 400.0,
+                            "unit": "g",
+                            "baker_percentage": 80.0  # 80% hydration
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        recipe_create = schemas.RecipeCreate(**recipe_data)
+        result = crud.create_recipe(test_db, recipe_create)
+        
+        # Calculate hydration from stored data
+        flour_amount = result.steps[0].ingredients[0].amount
+        water_amount = result.steps[0].ingredients[1].amount
+        hydration = (water_amount / flour_amount) * 100
+        
+        # Should be 80% hydration
+        assert abs(hydration - 80.0) < 0.1

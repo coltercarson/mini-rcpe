@@ -25,7 +25,9 @@
         <span style="margin: 0 0.5rem;">•</span>
         <span>Dough Weight: {{ recipe.dough_weight }}g</span>
         {% endif %}
-        <span style="margin: 0 0.5rem;">•</span>
+        <span id="hydration-separator" style="margin: 0 0.5rem; display: none;">•</span>
+        <span id="hydration-display"></span>
+        <span id="hydration-separator-end" style="margin: 0 0.5rem; display: none;">•</span>
         {% endif %}
         {% if recipe.total_time_minutes %}
         <span>Time: {{ recipe.total_time_minutes }} min</span>
@@ -212,5 +214,52 @@
             updateIngredient(el);
         });
     }
+
+    // Calculate and display hydration for bread mode
+    function calculateHydration() {
+        const hydrationDisplay = document.getElementById('hydration-display');
+        if (!hydrationDisplay) return;
+
+        const ingredients = document.querySelectorAll('.ingredient-item');
+        let flourWeight = 0;
+        let waterWeight = 0;
+
+        ingredients.forEach(el => {
+            const name = el.dataset.name.toLowerCase().trim();
+            const amount = parseFloat(el.dataset.baseAmount) || 0;
+
+            // Check if ingredient is flour
+            if (name.includes('flour') || name.includes('wheat') || 
+                name.includes('rye') || name.includes('spelt') || 
+                name.includes('semolina') || 
+                name.includes('all-purpose') || name.includes('whole grain')) {
+                flourWeight += amount;
+            }
+            // Check if ingredient is water or liquid
+            else if (name.includes('water') || name === 'milk' || name.includes('milk')) {
+                waterWeight += amount;
+            }
+        });
+
+        if (flourWeight > 0) {
+            const hydration = Math.round((waterWeight / flourWeight) * 100);
+            hydrationDisplay.innerText = `Hydration: ${hydration}%`;
+            // Show separators
+            const sepBefore = document.getElementById('hydration-separator');
+            const sepAfter = document.getElementById('hydration-separator-end');
+            if (sepBefore) sepBefore.style.display = '';
+            if (sepAfter) sepAfter.style.display = '';
+        } else {
+            hydrationDisplay.innerText = '';
+            // Hide separators
+            const sepBefore = document.getElementById('hydration-separator');
+            const sepAfter = document.getElementById('hydration-separator-end');
+            if (sepBefore) sepBefore.style.display = 'none';
+            if (sepAfter) sepAfter.style.display = 'none';
+        }
+    }
+
+    // Calculate hydration on page load
+    document.addEventListener('DOMContentLoaded', calculateHydration);
 </script>
 {% endblock %}
