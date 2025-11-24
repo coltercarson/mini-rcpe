@@ -5,7 +5,6 @@ Uses Ollama (or compatible API) to extract recipe data from raw HTML/text.
 import os
 import re
 import json
-import requests
 import logging
 from typing import Optional, Dict, Any
 
@@ -69,6 +68,8 @@ def extract_recipe_with_llm(html_or_text: str, url: str) -> Optional[Dict[str, A
         Dictionary with recipe data in the same format as scraper.scrape_recipe()
         or None if LLM extraction fails
     """
+    from ollama import Client
+    
     config = get_llm_config()
     
     # Clean HTML to text if needed
@@ -118,30 +119,22 @@ JSON output:"""
         if "1b" in config['model'].lower():
             logger.warning("Using 1B model - results may be less accurate. Consider using llama3.2 (3B) or larger for better extraction.")
         
-        # Call Ollama API
-        response = requests.post(
-            f"{config['base_url']}/api/generate",
-            json={
-                "model": config["model"],
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.1,  # Low temperature for more consistent output
-                    "num_predict": 3000,  # Limit response length
-                    "num_ctx": 4096,  # Context window size
-                }
-            },
-            timeout=config["timeout"]
+        # Initialize Ollama client
+        client = Client(host=config['base_url'])
+        
+        # Call Ollama using the client library
+        response = client.generate(
+            model=config["model"],
+            prompt=prompt,
+            options={
+                "temperature": 0.1,  # Low temperature for more consistent output
+                "num_predict": 3000,  # Limit response length
+                "num_ctx": 4096,  # Context window size
+            }
         )
         
-        if response.status_code != 200:
-            error_msg = f"LLM API error: {response.status_code} - {response.text}"
-            logger.error(error_msg)
-            return None
-        
         logger.info("LLM API call successful, parsing response...")
-        result = response.json()
-        llm_output = result.get("response", "").strip()
+        llm_output = response.get("response", "").strip()
         
         # Log the raw LLM output for debugging
         logger.debug(f"Raw LLM output: {llm_output[:500]}...")
@@ -156,11 +149,8 @@ JSON output:"""
             logger.error(f"Failed to parse LLM response: {llm_output[:200]}...")
             return None
             
-    except requests.exceptions.RequestException as e:
-        logger.error(f"LLM request failed: {e}")
-        return None
     except Exception as e:
-        logger.error(f"Unexpected error in LLM extraction: {e}")
+        logger.error(f"LLM request failed: {e}")
         return None
 
 
