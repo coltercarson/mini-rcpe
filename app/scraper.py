@@ -211,6 +211,8 @@ def scrape_recipe(url: str, use_llm_fallback: bool = True) -> dict:
                 llm_result = extract_recipe_with_llm(html, url)
                 if llm_result:
                     logger.info("Successfully extracted recipe using LLM fallback")
+                    # Set source_url for LLM-extracted recipes
+                    llm_result["source_url"] = url
                     return llm_result
                 else:
                     logger.error("LLM returned None")
@@ -304,5 +306,6 @@ def scrape_recipe(url: str, use_llm_fallback: bool = True) -> dict:
         "total_time_minutes": total_time,
         "base_servings": base_servings,
         "image_filename": local_image_filename,
+        "source_url": url,
         "steps": steps
     }

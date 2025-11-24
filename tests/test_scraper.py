@@ -152,6 +152,7 @@ class TestScrapeRecipe:
         assert result["title"] == "Test Recipe"
         assert result["total_time_minutes"] == 30
         assert result["base_servings"] == 4
+        assert result["source_url"] == "http://example.com/recipe"
         assert len(result["steps"]) == 2
         assert result["steps"][0]["step_number"] == 1
         assert result["steps"][0]["action"] == "Mix ingredients."

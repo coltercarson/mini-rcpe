@@ -21,6 +21,11 @@
     </div>
 
     <div class="form-group">
+        <label for="source_url">Source URL (optional)</label>
+        <input type="url" id="source_url" name="source_url" placeholder="https://example.com/recipe" value="{{ recipe.source_url if recipe and recipe.source_url else '' }}">
+    </div>
+
+    <div class="form-group">
         <label for="recipe-image">Recipe Image</label>
         <input type="file" id="recipe-image" accept="image/*"
             onchange="uploadImage(this, 'recipe-image-filename', 'recipe-image-preview')">
@@ -92,6 +97,7 @@
                 document.getElementById('title').value = data.title || '';
                 document.getElementById('total_time_minutes').value = data.total_time_minutes || '';
                 document.getElementById('base_servings').value = data.base_servings || 1;
+                document.getElementById('source_url').value = data.source_url || '';
 
                 // Clear existing steps
                 document.getElementById('steps-container').innerHTML = '';
@@ -225,6 +231,7 @@
             total_time_minutes: formData.get('total_time_minutes') || null,
             base_servings: formData.get('base_servings') || 1,
             image_filename: formData.get('image_filename') || null,
+            source_url: formData.get('source_url') || null,
             steps: []
         };
 

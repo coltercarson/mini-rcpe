@@ -12,7 +12,8 @@ def create_recipe(db: Session, recipe: schemas.RecipeCreate):
         title=recipe.title,
         total_time_minutes=recipe.total_time_minutes,
         base_servings=recipe.base_servings,
-        image_filename=recipe.image_filename
+        image_filename=recipe.image_filename,
+        source_url=recipe.source_url
     )
     db.add(db_recipe)
     db.commit()
@@ -54,6 +55,7 @@ def update_recipe(db: Session, recipe_id: int, recipe_data: schemas.RecipeCreate
     db_recipe.total_time_minutes = recipe_data.total_time_minutes
     db_recipe.base_servings = recipe_data.base_servings
     db_recipe.image_filename = recipe_data.image_filename
+    db_recipe.source_url = recipe_data.source_url
     
     # Delete existing steps (cascade will handle ingredients)
     # Note: In a more complex app, we might try to diff steps, but for MVP, replacing is safer/easier

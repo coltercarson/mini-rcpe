@@ -40,6 +40,7 @@ class RecipeBase(BaseModel):
     total_time_minutes: Optional[int] = None
     base_servings: int = 1
     image_filename: Optional[str] = None
+    source_url: Optional[str] = None
 
 class RecipeCreate(RecipeBase):
     steps: List[StepCreate] = []

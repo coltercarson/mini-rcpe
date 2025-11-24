@@ -24,6 +24,10 @@
         <span style="margin: 0 0.5rem;">•</span>
         {% endif %}
         <span>Servings: <span id="servings-display">{{ recipe.base_servings }}</span></span>
+        {% if recipe.source_url %}
+        <span style="margin: 0 0.5rem;">•</span>
+        <span><a href="{{ recipe.source_url }}" target="_blank" rel="noopener noreferrer" style="color: var(--meta-color); text-decoration: underline;">Source</a></span>
+        {% endif %}
 
         <div style="margin-top: 0.5rem;">
             <label for="scale-select" style="font-size: 0.9em; margin-right: 0.5rem;">Scale:</label>
