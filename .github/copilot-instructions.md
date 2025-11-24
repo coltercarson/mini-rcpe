@@ -166,9 +166,8 @@ def test_api_endpoint(client):
 
 Environment variables are defined in `.env`:
 - `ADMIN_PASSWORD`: Password for recipe editing (required)
-- `DB_PATH`: Database file location (default: ./rcpe.db)
+- `DB_PATH`: Database file location (default: ./rcpe.db in development, /app/data/rcpe.db in Docker)
 - `APP_PORT`: Application port (default: 8000)
-- `APP_HOST`: Application host (default: 127.0.0.1)
 - `LLM_ENABLED`: Enable LLM fallback (default: false)
 - `LLM_BASE_URL`: Ollama API endpoint (default: http://localhost:11434)
 - `LLM_MODEL`: Model name for extraction (default: llama3.2)
