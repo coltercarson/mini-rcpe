@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini-RCPE Demo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <button class="sidebar-toggle" id="sidebar-toggle">☰</button>
+
+    <div class="sidebar" id="sidebar">
+        <nav>
+            <ul class="recipe-list">
+                <li><a href="#home" onclick="showHome()" style="font-weight: bold; margin-bottom: 1rem; display: block;">Home</a></li>
+                <li><a href="https://github.com/coltercarson/mini-rcpe" target="_blank" style="color: var(--meta-color);">View on GitHub</a></li>
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1rem 0;">
+                <li><a href="#recipe-1" onclick="showRecipe(0)">Chocolate Chip Cookies</a></li>
+                <li><a href="#recipe-2" onclick="showRecipe(1)">Classic Sourdough Bread</a></li>
+                <li><a href="#recipe-3" onclick="showRecipe(2)">Simple Tomato Pasta</a></li>
+            </ul>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1rem 0;">
+            <div style="margin-top: 1rem;">
+                <h4 style="font-size: 0.9em; color: var(--meta-color); margin-bottom: 0.5rem;">Settings</h4>
+                <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label for="font-size-input" style="font-size: 0.8em;">Font Size (px)</label>
+                    <input type="number" id="font-size-input" value="16" min="10" max="32"
+                        style="width: 60px; padding: 0.2rem;">
+                </div>
+                <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label for="bg-color-input" style="font-size: 0.8em;">Background</label>
+                    <input type="color" id="bg-color-input" value="#f4f4f4"
+                        style="width: 100%; height: 30px; padding: 0; border: none;">
+                </div>
+            </div>
+        </nav>
+    </div>
+
+    <main class="main-content">
+        <div class="container">
+            <div id="home-view" style="text-align: center; margin-top: 4rem;">
+                <h1>Welcome to Mini-RCPE</h1>
+                <p class="meta">This is a static demo of the mini-rcpe recipe manager.</p>
+                <p class="meta">Select a recipe from the sidebar to view details.</p>
+                <p class="meta" style="margin-top: 2rem;">
+                    <strong>Note:</strong> This is a demo version with limited functionality.<br>
+                    For the full application with recipe scraping and editing, visit the 
+                    <a href="https://github.com/coltercarson/mini-rcpe" target="_blank" 
+                       style="color: var(--text-color); text-decoration: underline;">GitHub repository</a>.
+                </p>
+            </div>
+            <div id="recipe-view" style="display: none;"></div>
+        </div>
+    </main>
+
+    <script src="recipes.js"></script>
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('sidebar-toggle');
+        const fontSizeInput = document.getElementById('font-size-input');
+        const bgColorInput = document.getElementById('bg-color-input');
+        const root = document.documentElement;
+        const homeView = document.getElementById('home-view');
+        const recipeView = document.getElementById('recipe-view');
+
+        // Toggle Sidebar
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth < 1024 &&
+                !sidebar.contains(e.target) &&
+                !toggleBtn.contains(e.target) &&
+                sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        // Settings Logic
+        function updateSettings(fontSize, bgColor) {
+            root.style.setProperty('--base-font-size', fontSize + 'px');
+            root.style.setProperty('--bg-color', bgColor);
+            localStorage.setItem('mini-rcpe-demo-settings', JSON.stringify({ fontSize, bgColor }));
+        }
+
+        function loadSettings() {
+            const settingsData = localStorage.getItem('mini-rcpe-demo-settings');
+            if (settingsData) {
+                const settings = JSON.parse(settingsData);
+                if (settings.fontSize) {
+                    fontSizeInput.value = settings.fontSize;
+                    root.style.setProperty('--base-font-size', settings.fontSize + 'px');
+                }
+                if (settings.bgColor) {
+                    bgColorInput.value = settings.bgColor;
+                    root.style.setProperty('--bg-color', settings.bgColor);
+                }
+            }
+        }
+
+        fontSizeInput.addEventListener('input', (e) => {
+            updateSettings(e.target.value, bgColorInput.value);
+        });
+
+        bgColorInput.addEventListener('input', (e) => {
+            updateSettings(fontSizeInput.value, e.target.value);
+        });
+
+        // Load settings on startup
+        loadSettings();
+
+        // Recipe display logic
+        function showHome() {
+            homeView.style.display = 'block';
+            recipeView.style.display = 'none';
+            window.scrollTo(0, 0);
+        }
+
+        function showRecipe(index) {
+            const recipe = recipes[index];
+            homeView.style.display = 'none';
+            recipeView.style.display = 'block';
+            recipeView.innerHTML = renderRecipe(recipe);
+            window.scrollTo(0, 0);
+            
+            // Close sidebar on mobile
+            if (window.innerWidth < 1024) {
+                sidebar.classList.remove('open');
+            }
+        }
+
+        function renderRecipe(recipe) {
+            let html = `
+                <div class="recipe-header">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <h1 style="margin-bottom: 0.5rem;">${recipe.title}</h1>
+                    </div>
+
+                    <div class="meta">
+                        ${recipe.recipe_mode === 'bread' ? '<span style="background-color: rgba(100, 150, 255, 0.2); padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.9em;">🍞 Bread Mode</span>' : ''}
+                        ${recipe.total_time_minutes ? `<span>Time: ${recipe.total_time_minutes} min</span><span style="margin: 0 0.5rem;">•</span>` : ''}
+                        <span>Servings: <span id="servings-display">${recipe.base_servings}</span></span>
+                        ${recipe.source_url ? `<span style="margin: 0 0.5rem;">•</span><span><a href="${recipe.source_url}" target="_blank" rel="noopener noreferrer" style="color: var(--meta-color); text-decoration: underline;">Source</a></span>` : ''}
+
+                        <div style="margin-top: 0.5rem;">
+                            <label for="scale-select" style="font-size: 0.9em; margin-right: 0.5rem;">Scale:</label>
+                            <select id="scale-select" onchange="scaleRecipe(this.value, ${recipe.base_servings})"
+                                style="font-family: var(--font-mono); font-size: 0.9em; padding: 0.2rem;">
+                                <option value="0.5">0.5x</option>
+                                <option value="1" selected>1x</option>
+                                <option value="2">2x</option>
+                                <option value="3">3x</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ingredients-summary">
+                    <h3>Ingredients</h3>
+                    <ul>`;
+
+            // Collect all ingredients from steps
+            recipe.steps.forEach(step => {
+                step.ingredients.forEach(ingredient => {
+                    html += `
+                        <li class="ingredient-item" data-base-amount="${ingredient.amount || ''}"
+                            data-base-unit="${ingredient.unit || ''}"
+                            data-name="${ingredient.ingredient_name}">
+                            <span class="amount">${ingredient.amount || ''}</span>
+                            <span class="unit">${ingredient.unit || ''}</span>
+                            <span class="name">${ingredient.ingredient_name}</span>
+                        </li>`;
+                });
+            });
+
+            html += `
+                    </ul>
+                </div>
+
+                <div class="steps">
+                    <h3>Preparation</h3>`;
+
+            recipe.steps.forEach(step => {
+                html += `
+                    <div class="step">
+                        <div class="step-header">
+                            <span class="step-number">${step.step_number}.</span>
+                            <div class="step-content">
+                                <span class="step-action">${step.action}</span>`;
+
+                if (step.ingredients && step.ingredients.length > 0) {
+                    html += `
+                                <div style="margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                                    <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.9em; color: var(--meta-color);">`;
+                    step.ingredients.forEach(ingredient => {
+                        html += `
+                                        <li class="ingredient-item" data-base-amount="${ingredient.amount || ''}"
+                                            data-base-unit="${ingredient.unit || ''}"
+                                            data-name="${ingredient.ingredient_name}">
+                                            <span class="amount">${ingredient.amount || ''}</span>
+                                            <span class="unit">${ingredient.unit || ''}</span>
+                                            <span class="name">${ingredient.ingredient_name}</span>
+                                        </li>`;
+                    });
+                    html += `
+                                    </ul>
+                                </div>`;
+                }
+
+                if (step.time_minutes) {
+                    html += `<span class="step-meta">(${step.time_minutes} min)</span>`;
+                }
+
+                html += `
+                            </div>
+                        </div>
+                    </div>`;
+            });
+
+            html += `
+                </div>`;
+
+            return html;
+        }
+
+        function scaleRecipe(factor, baseServings) {
+            factor = parseFloat(factor);
+
+            // Update servings display
+            const newServings = Math.round(baseServings * factor * 10) / 10;
+            document.getElementById('servings-display').innerText = newServings;
+
+            // Update ingredients
+            const ingredients = document.querySelectorAll('.ingredient-item');
+            ingredients.forEach(el => {
+                const baseAmount = parseFloat(el.dataset.baseAmount);
+                if (isNaN(baseAmount)) return;
+
+                let amount = baseAmount * factor;
+                const unit = el.dataset.baseUnit;
+
+                // Rounding logic
+                if (amount > 100) {
+                    amount = Math.round(amount);
+                } else if (amount > 10) {
+                    amount = Math.round(amount * 10) / 10;
+                } else {
+                    amount = Math.round(amount * 100) / 100;
+                }
+
+                el.querySelector('.amount').innerText = amount;
+            });
+        }
+
+        // Handle direct links
+        window.addEventListener('load', () => {
+            const hash = window.location.hash;
+            if (hash.startsWith('#recipe-')) {
+                const index = parseInt(hash.split('-')[1]) - 1;
+                if (index >= 0 && index < recipes.length) {
+                    showRecipe(index);
+                }
+            }
+        });
+    </script>
+
+</body>
+
+</html>
