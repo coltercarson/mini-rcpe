@@ -15,6 +15,32 @@
 </div>
 
 <form id="recipe-form">
+    <div class="form-group" style="margin-bottom: 2rem; padding: 1rem; border: 2px solid var(--border-color); border-radius: 4px; background-color: rgba(0,0,0,0.02);">
+        <label style="font-weight: bold; margin-bottom: 0.5rem; display: block;">Recipe Mode</label>
+        <div style="display: flex; gap: 1rem;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="radio" name="recipe_mode" value="normal" id="mode-normal" checked onchange="toggleRecipeMode()">
+                <span style="margin-left: 0.5rem;">Normal Recipe</span>
+            </label>
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="radio" name="recipe_mode" value="bread" id="mode-bread" onchange="toggleRecipeMode()">
+                <span style="margin-left: 0.5rem;">Bread Baking (Baker's Percentages)</span>
+            </label>
+        </div>
+    </div>
+
+    <div id="bread-mode-fields" style="display: none; margin-bottom: 2rem; padding: 1rem; border: 1px solid var(--border-color); background-color: rgba(100, 150, 255, 0.05);">
+        <div class="form-group">
+            <label for="dough_weight">Desired Dough Weight (grams)</label>
+            <input type="number" step="any" id="dough_weight" name="dough_weight" 
+                value="{{ recipe.dough_weight if recipe else '' }}" 
+                placeholder="e.g., 1000">
+            <small style="display: block; margin-top: 0.25rem; color: var(--meta-color);">
+                Enter the total weight of dough you want to make. Ingredient amounts will be calculated from baker's percentages.
+            </small>
+        </div>
+    </div>
+
     <div class="form-group">
         <label for="title">Recipe Title</label>
         <input type="text" id="title" name="title" required value="{{ recipe.title if recipe else '' }}">
@@ -66,6 +92,88 @@
 <script>
     let stepCount = 0;
     const initialRecipe = {{ recipe | tojson if recipe else 'null' }};
+
+    function toggleRecipeMode() {
+        const isBreadMode = document.getElementById('mode-bread').checked;
+        const breadFields = document.getElementById('bread-mode-fields');
+        
+        if (isBreadMode) {
+            breadFields.style.display = 'block';
+        } else {
+            breadFields.style.display = 'none';
+        }
+        
+        // Rebuild all ingredient rows with appropriate fields
+        rebuildIngredientRows();
+    }
+
+    function rebuildIngredientRows() {
+        const stepsContainer = document.getElementById('steps-container');
+        const stepDivs = stepsContainer.getElementsByClassName('step');
+        
+        Array.from(stepDivs).forEach((stepDiv) => {
+            const stepId = stepDiv.id;
+            const ingList = stepDiv.querySelector('.ingredients-list');
+            const ingRows = ingList.querySelectorAll('.ingredient-row');
+            
+            // Save current data
+            const ingredientsData = [];
+            ingRows.forEach(row => {
+                const nameInput = row.querySelector('input[placeholder*="Name"]');
+                const amountInput = row.querySelector('input[name*="ing_amount"]');
+                const unitInput = row.querySelector('input[placeholder="Unit"]');
+                const bakerInput = row.querySelector('input[name*="ing_baker_percentage"]');
+                
+                if (nameInput && nameInput.value) {
+                    ingredientsData.push({
+                        ingredient_name: nameInput.value,
+                        amount: amountInput ? parseFloat(amountInput.value) || null : null,
+                        unit: unitInput ? unitInput.value : '',
+                        baker_percentage: bakerInput ? parseFloat(bakerInput.value) || null : null
+                    });
+                }
+            });
+            
+            // Remove all ingredient rows except the label
+            ingRows.forEach(row => row.remove());
+            
+            // Re-add with correct fields
+            ingredientsData.forEach(data => addIngredient(stepId, data));
+        });
+    }
+
+    function calculateBakerPercentages() {
+        const isBreadMode = document.getElementById('mode-bread').checked;
+        if (!isBreadMode) return;
+        
+        const doughWeight = parseFloat(document.getElementById('dough_weight').value);
+        if (!doughWeight || doughWeight <= 0) return;
+        
+        // Collect all baker's percentages
+        let totalPercentage = 0;
+        const stepsContainer = document.getElementById('steps-container');
+        const allBakerInputs = stepsContainer.querySelectorAll('input[name*="ing_baker_percentage"]');
+        
+        allBakerInputs.forEach(input => {
+            const percentage = parseFloat(input.value) || 0;
+            totalPercentage += percentage;
+        });
+        
+        if (totalPercentage <= 0) return;
+        
+        // Calculate actual amounts based on percentages
+        allBakerInputs.forEach(input => {
+            const percentage = parseFloat(input.value) || 0;
+            const amount = (doughWeight * percentage) / totalPercentage;
+            
+            // Find the corresponding amount input (readonly field)
+            const row = input.closest('.ingredient-row');
+            const amountInput = row.querySelector('input[name*="ing_amount"]');
+            if (amountInput) {
+                amountInput.value = amount.toFixed(1);
+            }
+        });
+    }
 
     async function importRecipe() {
         const urlInput = document.getElementById('import-url');
@@ -193,15 +301,29 @@
     function addIngredient(stepId, data = null) {
         const list = document.getElementById(`ingredients-${stepId}`);
         const count = list.children.length;
+        const isBreadMode = document.getElementById('mode-bread').checked;
 
-        const html = `
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
-                <input type="text" placeholder="Name (e.g. Flour)" name="ing_name_${stepId}_${count}" required value="${data ? data.ingredient_name : ''}" style="flex: 2;">
-                <input type="number" step="any" placeholder="Amount" name="ing_amount_${stepId}_${count}" value="${data && data.amount ? data.amount : ''}" style="flex: 1;">
-                <input type="text" placeholder="Unit" name="ing_unit_${stepId}_${count}" value="${data && data.unit ? data.unit : ''}" style="flex: 1;">
-                <button type="button" onclick="this.parentElement.remove()" style="border: none; color: red;">x</button>
-            </div>
-        `;
+        let html;
+        if (isBreadMode) {
+            html = `
+                <div class="ingredient-row" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <input type="text" placeholder="Name (e.g. Flour)" name="ing_name_${stepId}_${count}" required value="${data ? data.ingredient_name : ''}" style="flex: 2;">
+                    <input type="number" step="any" placeholder="Baker's %" name="ing_baker_percentage_${stepId}_${count}" value="${data && data.baker_percentage ? data.baker_percentage : ''}" style="flex: 1;">
+                    <input type="number" step="any" placeholder="Calculated" name="ing_amount_${stepId}_${count}" value="${data && data.amount ? data.amount : ''}" style="flex: 1;" readonly>
+                    <input type="text" placeholder="Unit" name="ing_unit_${stepId}_${count}" value="${data && data.unit ? data.unit : ''}" style="flex: 1;">
+                    <button type="button" onclick="this.parentElement.remove()" style="border: none; color: red;">x</button>
+                </div>
+            `;
+        } else {
+            html = `
+                <div class="ingredient-row" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <input type="text" placeholder="Name (e.g. Flour)" name="ing_name_${stepId}_${count}" required value="${data ? data.ingredient_name : ''}" style="flex: 2;">
+                    <input type="number" step="any" placeholder="Amount" name="ing_amount_${stepId}_${count}" value="${data && data.amount ? data.amount : ''}" style="flex: 1;">
+                    <input type="text" placeholder="Unit" name="ing_unit_${stepId}_${count}" value="${data && data.unit ? data.unit : ''}" style="flex: 1;">
+                    <button type="button" onclick="this.parentElement.remove()" style="border: none; color: red;">x</button>
+                </div>
+            `;
+        }
         list.insertAdjacentHTML('beforeend', html);
     }
 
@@ -211,10 +333,27 @@
 
     // Initialize form if editing
     if (initialRecipe) {
+        // Set recipe mode if available
+        if (initialRecipe.recipe_mode) {
+            if (initialRecipe.recipe_mode === 'bread') {
+                document.getElementById('mode-bread').checked = true;
+                toggleRecipeMode();
+            }
+        }
         initialRecipe.steps.forEach(step => addStep(step));
     } else {
         addStep(); // Start with one empty step
     }
+
+    // Add event listener to dough_weight to recalculate on change
+    document.getElementById('dough_weight').addEventListener('input', calculateBakerPercentages);
+    
+    // Add event listener to recipe mode for calculating when switching modes
+    document.addEventListener('input', (e) => {
+        if (e.target.name && e.target.name.includes('ing_baker_percentage')) {
+            calculateBakerPercentages();
+        }
+    });
 
     document.getElementById('recipe-form').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -224,6 +363,8 @@
             title: formData.get('title'),
             total_time_minutes: formData.get('total_time_minutes') || null,
             base_servings: formData.get('base_servings') || 1,
+            recipe_mode: formData.get('recipe_mode') || 'normal',
+            dough_weight: formData.get('dough_weight') || null,
             image_filename: formData.get('image_filename') || null,
             steps: []
         };
@@ -248,18 +389,20 @@
             };
 
             const ingList = stepDiv.querySelector('.ingredients-list');
-            const ingRows = ingList.querySelectorAll('div[style*="display: flex"]');
+            const ingRows = ingList.querySelectorAll('.ingredient-row');
 
             ingRows.forEach(row => {
                 const nameInput = row.querySelector('input[placeholder*="Name"]');
-                const amountInput = row.querySelector('input[placeholder="Amount"]');
+                const amountInput = row.querySelector('input[name*="ing_amount"]');
                 const unitInput = row.querySelector('input[placeholder="Unit"]');
+                const bakerPercentageInput = row.querySelector('input[name*="ing_baker_percentage"]');
 
-                if (nameInput.value) {
+                if (nameInput && nameInput.value) {
                     step.ingredients.push({
                         ingredient_name: nameInput.value,
-                        amount: amountInput.value || null,
-                        unit: unitInput.value || null
+                        amount: amountInput && amountInput.value ? parseFloat(amountInput.value) : null,
+                        unit: unitInput && unitInput.value ? unitInput.value : null,
+                        baker_percentage: bakerPercentageInput && bakerPercentageInput.value ? parseFloat(bakerPercentageInput.value) : null
                     });
                 }
             });

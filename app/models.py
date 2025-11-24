@@ -12,6 +12,8 @@ class Recipe(Base):
     title = Column(String, index=True, nullable=False)
     total_time_minutes = Column(Integer)
     base_servings = Column(Integer, default=1)
+    recipe_mode = Column(String, default="normal")
+    dough_weight = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     image_filename = Column(String, nullable=True)
@@ -42,6 +44,7 @@ class StepIngredient(Base):
     ingredient_name = Column(String, nullable=False)
     amount = Column(Float)
     unit = Column(String)
+    baker_percentage = Column(Float, nullable=True)
     
     step = relationship("Step", back_populates="ingredients")
 
