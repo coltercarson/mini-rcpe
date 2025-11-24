@@ -36,7 +36,10 @@
                 value="{{ recipe.dough_weight if recipe else '' }}" 
                 placeholder="e.g., 1000">
             <small style="display: block; margin-top: 0.25rem; color: var(--meta-color);">
-                Enter the total weight of dough you want to make. Specify each ingredient as a percentage of the total, and amounts will be calculated automatically.
+                Enter the total weight of dough you want to make. Flour should be 100%, and other ingredients should be specified as a percentage of the flour weight (Baker's Percentage).
+            </small>
+            <small style="display: block; margin-top: 0.25rem; color: var(--meta-color); font-style: italic;">
+                Example: For a 65% hydration dough, use flour at 100% and water at 65%.
             </small>
         </div>
     </div>
@@ -154,30 +157,58 @@
         const doughWeight = parseFloat(document.getElementById('dough_weight').value);
         if (!doughWeight || doughWeight <= 0) return;
         
-        // Collect all baker's percentages
-        let totalPercentage = 0;
         const stepsContainer = document.getElementById('steps-container');
-        const allBakerInputs = stepsContainer.querySelectorAll('input[name*="ing_baker_percentage"]');
+        const allRows = stepsContainer.querySelectorAll('.ingredient-row');
         
-        allBakerInputs.forEach(input => {
-            const percentage = parseFloat(input.value) || 0;
-            totalPercentage += percentage;
+        // Collect all ingredients with their baker's percentages
+        const ingredients = [];
+        let flourPercentageTotal = 0;
+        let otherPercentageTotal = 0;
+        
+        allRows.forEach(row => {
+            const nameInput = row.querySelector('input[placeholder*="Name"]');
+            const bakerInput = row.querySelector('input[name*="ing_baker_percentage"]');
+            
+            if (nameInput && bakerInput) {
+                const name = nameInput.value.toLowerCase().trim();
+                const percentage = parseFloat(bakerInput.value) || 0;
+                
+                if (percentage > 0) {
+                    const isFlour = name.includes('flour') || name.includes('wheat') || 
+                                   name.includes('rye') || name.includes('spelt') || 
+                                   name.includes('semolina') || name.includes('bread flour') ||
+                                   name.includes('all-purpose') || name.includes('whole grain');
+                    
+                    ingredients.push({ row, name, percentage, isFlour });
+                    
+                    if (isFlour) {
+                        flourPercentageTotal += percentage;
+                    } else {
+                        otherPercentageTotal += percentage;
+                    }
+                }
+            }
         });
         
-        if (totalPercentage <= 0) {
-            console.log('No valid percentages entered yet');
+        if (flourPercentageTotal <= 0) {
+            console.log('No flour ingredients found. Baker\'s percentage requires flour at 100% as base.');
             return;
         }
         
-        // Calculate actual amounts based on percentages
-        allBakerInputs.forEach(input => {
-            const percentage = parseFloat(input.value) || 0;
-            const amount = (doughWeight * percentage) / totalPercentage;
-            
-            // Find the corresponding amount input (readonly field)
-            const row = input.closest('.ingredient-row');
+        // Calculate total baker's percentage (flour should be at 100% or sum to 100%)
+        const totalBakerPercentage = flourPercentageTotal + otherPercentageTotal;
+        
+        // Calculate flour weight based on total dough weight
+        // Total dough = flour_weight * (total_baker_percentage / 100)
+        // So: flour_weight = (dough_weight * 100) / total_baker_percentage
+        const flourWeight = (doughWeight * 100) / totalBakerPercentage;
+        
+        // Calculate actual amounts for each ingredient
+        ingredients.forEach(({ row, percentage, isFlour }) => {
             const amountInput = row.querySelector('input[name*="ing_amount"]');
             if (amountInput) {
+                // Amount = flour_weight * (ingredient_percentage / 100)
+                const amount = flourWeight * (percentage / 100);
                 amountInput.value = amount.toFixed(1);
             }
         });
@@ -317,7 +348,7 @@
             html = `
                 <div class="ingredient-row" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                     <input type="text" placeholder="Name (e.g. Flour)" name="ing_name_${stepId}_${count}" required value="${data ? data.ingredient_name : ''}" style="flex: 2;">
-                    <input type="number" step="any" placeholder="% (e.g., 65)" name="ing_baker_percentage_${stepId}_${count}" value="${data && data.baker_percentage ? data.baker_percentage : ''}" style="flex: 1;" title="Percentage of total dough weight">
+                    <input type="number" step="any" placeholder="% (flour=100)" name="ing_baker_percentage_${stepId}_${count}" value="${data && data.baker_percentage ? data.baker_percentage : ''}" style="flex: 1;" title="Baker's percentage (flour = 100%)">
                     <input type="number" step="any" placeholder="Amount (g)" name="ing_amount_${stepId}_${count}" value="${data && data.amount ? data.amount : ''}" style="flex: 1;" readonly title="Calculated from percentage">
                     <input type="text" placeholder="Unit" name="ing_unit_${stepId}_${count}" value="${data && data.unit ? data.unit : ''}" style="flex: 1;">
                     <button type="button" onclick="this.parentElement.remove()" style="border: none; color: red;">x</button>

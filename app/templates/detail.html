@@ -26,6 +26,8 @@
         <span>Dough Weight: {{ recipe.dough_weight }}g</span>
         {% endif %}
         <span style="margin: 0 0.5rem;">•</span>
+        <span id="hydration-display"></span>
+        <span style="margin: 0 0.5rem;">•</span>
         {% endif %}
         {% if recipe.total_time_minutes %}
         <span>Time: {{ recipe.total_time_minutes }} min</span>
@@ -212,5 +214,42 @@
             updateIngredient(el);
         });
     }
+
+    // Calculate and display hydration for bread mode
+    function calculateHydration() {
+        const hydrationDisplay = document.getElementById('hydration-display');
+        if (!hydrationDisplay) return;
+
+        const ingredients = document.querySelectorAll('.ingredient-item');
+        let flourWeight = 0;
+        let waterWeight = 0;
+
+        ingredients.forEach(el => {
+            const name = el.dataset.name.toLowerCase().trim();
+            const amount = parseFloat(el.dataset.baseAmount) || 0;
+
+            // Check if ingredient is flour
+            if (name.includes('flour') || name.includes('wheat') || 
+                name.includes('rye') || name.includes('spelt') || 
+                name.includes('semolina') || name.includes('bread flour') ||
+                name.includes('all-purpose') || name.includes('whole grain')) {
+                flourWeight += amount;
+            }
+            // Check if ingredient is water or liquid
+            else if (name.includes('water') || name === 'milk' || name.includes('milk')) {
+                waterWeight += amount;
+            }
+        });
+
+        if (flourWeight > 0) {
+            const hydration = Math.round((waterWeight / flourWeight) * 100);
+            hydrationDisplay.innerText = `Hydration: ${hydration}%`;
+        } else {
+            hydrationDisplay.innerText = '';
+        }
+    }
+
+    // Calculate hydration on page load
+    document.addEventListener('DOMContentLoaded', calculateHydration);
 </script>
 {% endblock %}
