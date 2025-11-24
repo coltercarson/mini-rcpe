@@ -17,6 +17,7 @@ class Recipe(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     image_filename = Column(String, nullable=True)
+    source_url = Column(String, nullable=True)
 
     steps = relationship("Step", back_populates="recipe", cascade="all, delete-orphan", order_by="Step.step_number")
 

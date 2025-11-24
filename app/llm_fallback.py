@@ -229,6 +229,7 @@ def parse_llm_response(llm_output: str) -> Optional[Dict[str, Any]]:
             "total_time_minutes": total_time,
             "base_servings": base_servings,
             "image_filename": None,
+            "source_url": None,  # Will be set by caller
             "steps": steps
         }
         

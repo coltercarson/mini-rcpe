@@ -127,6 +127,21 @@ class TestRecipeBase:
         )
         assert recipe.image_filename == "test.jpg"
 
+    def test_recipe_with_source_url(self):
+        """Test recipe with source URL."""
+        recipe = schemas.RecipeCreate(
+            title="Recipe with Source",
+            source_url="https://example.com/recipe"
+        )
+        assert recipe.source_url == "https://example.com/recipe"
+    
+    def test_recipe_without_source_url(self):
+        """Test recipe without source URL defaults to None."""
+        recipe = schemas.RecipeCreate(
+            title="Recipe without Source"
+        )
+        assert recipe.source_url is None
+
 
 class TestRecipeNested:
     """Tests for nested recipe structures."""

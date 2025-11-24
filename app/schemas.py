@@ -43,6 +43,7 @@ class RecipeBase(BaseModel):
     recipe_mode: str = "normal"
     dough_weight: Optional[float] = None
     image_filename: Optional[str] = None
+    source_url: Optional[str] = None
 
 class RecipeCreate(RecipeBase):
     steps: List[StepCreate] = []
