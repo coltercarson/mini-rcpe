@@ -1,19 +1,22 @@
-version: '3.8'
-
 services:
   web:
+    container_name: mini-rcpe
+    network_mode: host
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    ports:
-      # Change the port here (format: "host_port:8000")
-      - "8000:8000"
     environment:
       # CONFIGURE YOUR SETTINGS HERE:
+      - APP_PORT=8069
       # Admin password for editing recipes
-      - ADMIN_PASSWORD=changeme
+      - ADMIN_PASSWORD=password
       # Database path inside container (usually no need to change)
       - DB_PATH=/app/data/rcpe.db
+      # LLM settings - enable and point to host machine's Ollama
+      - LLM_ENABLED=true
+      - LLM_BASE_URL=http://localhost:11434
+      - LLM_MODEL=gpt-oss:120b-cloud
+      - LLM_TIMEOUT=120
     volumes:
       # Persist database
       - ../data:/app/data
