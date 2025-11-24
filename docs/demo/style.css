@@ -105,11 +105,9 @@ h5,
 h6 {
     font-weight: normal;
     font-size: var(--base-font-size);
-    /* Same size as body */
     margin-top: 0;
     margin-bottom: 1rem;
     text-transform: uppercase;
-    /* Optional: uppercase for hierarchy without size change? Or just bold? Let's stick to plain or maybe bold. User said "keep text size the same". */
     font-weight: bold;
 }
 

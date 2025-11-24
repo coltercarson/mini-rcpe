@@ -89,8 +89,9 @@
         }
 
         function loadSettings() {
-            const settings = JSON.parse(localStorage.getItem('mini-rcpe-demo-settings'));
-            if (settings) {
+            const settingsData = localStorage.getItem('mini-rcpe-demo-settings');
+            if (settingsData) {
+                const settings = JSON.parse(settingsData);
                 if (settings.fontSize) {
                     fontSizeInput.value = settings.fontSize;
                     root.style.setProperty('--base-font-size', settings.fontSize + 'px');
