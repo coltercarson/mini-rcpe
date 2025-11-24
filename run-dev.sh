@@ -4,6 +4,8 @@ set -euo pipefail
 # Convenience script to launch the FastAPI dev server with auto-reload.
 # Requires dependencies from requirements.txt to be installed in the active environment.
 
+source .venv/bin/activate
+
 # Load environment variables from .env if present so local dev matches Docker compose configuration.
 if [[ -f .env ]]; then
 	# shellcheck disable=SC1091
