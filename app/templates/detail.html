@@ -19,6 +19,14 @@
     {% endif %}
 
     <div class="meta">
+        {% if recipe.recipe_mode == 'bread' %}
+        <span style="background-color: rgba(100, 150, 255, 0.2); padding: 0.2rem 0.5rem; border-radius: 3px; font-size: 0.9em;">🍞 Bread Mode</span>
+        {% if recipe.dough_weight %}
+        <span style="margin: 0 0.5rem;">•</span>
+        <span>Dough Weight: {{ recipe.dough_weight }}g</span>
+        {% endif %}
+        <span style="margin: 0 0.5rem;">•</span>
+        {% endif %}
         {% if recipe.total_time_minutes %}
         <span>Time: {{ recipe.total_time_minutes }} min</span>
         <span style="margin: 0 0.5rem;">•</span>
@@ -49,6 +57,9 @@
             <span class="amount">{{ ingredient.amount if ingredient.amount else '' }}</span>
             <span class="unit">{{ ingredient.unit if ingredient.unit else '' }}</span>
             <span class="name">{{ ingredient.ingredient_name }}</span>
+            {% if recipe.recipe_mode == 'bread' and ingredient.baker_percentage %}
+            <span style="color: var(--meta-color); font-size: 0.85em; margin-left: 0.3rem;">({{ ingredient.baker_percentage }}%)</span>
+            {% endif %}
         </li>
         {% endfor %}
         {% endfor %}
