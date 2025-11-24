@@ -96,18 +96,32 @@ Return a JSON object with this structure:
   "title": "actual recipe title from the text",
   "total_time_minutes": actual_number_or_null,
   "base_servings": actual_number,
-  "ingredients": [["actual ingredient from step 1"], ["actual ingredient from step 2"]],
-  "instructions": "Actual step 1 instruction.\\nActual step 2 instruction."
+  "steps": [
+    {{
+      "action": "Step 1 instruction text",
+      "time_minutes": number_or_null,
+      "ingredients": ["ingredient 1 for this step", "ingredient 2 for this step"]
+    }},
+    {{
+      "action": "Step 2 instruction text",
+      "time_minutes": number_or_null,
+      "ingredients": ["ingredient 1 for this step"]
+    }}
+  ]
 }}
 
 Requirements:
 1. Extract the REAL recipe title from the text
 2. Find the total time in minutes (or null if not mentioned)
 3. Find how many servings (or use 1 if not mentioned)
-4. Group ingredients by cooking step as lists of lists
-5. Extract ALL instruction steps, separated by newlines
-6. Return ONLY valid JSON, no extra text
-7. If no recipe found, return: null
+4. Create a "steps" array where each step has:
+   - "action": The instruction text for this step
+   - "time_minutes": Duration for THIS SPECIFIC STEP if mentioned (e.g., "cook for 10 minutes"), otherwise null
+   - "ingredients": List of ingredients used in THIS SPECIFIC STEP only
+5. Match ingredients to the step where they are actually used
+6. If all ingredients are listed together, distribute them intelligently based on when they appear in instructions
+7. Return ONLY valid JSON, no extra text before or after
+8. If no recipe found, return: null
 
 Recipe text to extract from:
 {text}
@@ -187,40 +201,68 @@ def parse_llm_response(llm_output: str) -> Optional[Dict[str, Any]]:
         title = llm_data.get("title", "Untitled Recipe")
         total_time = llm_data.get("total_time_minutes")
         base_servings = llm_data.get("base_servings", 1)
-        ingredients = llm_data.get("ingredients", [[]])
-        instructions = llm_data.get("instructions", "")
         
-        # Parse instructions into steps
+        # Parse steps - new format has steps directly in the response
         steps = []
-        if instructions:
-            raw_steps = [s.strip() for s in instructions.split('\n') if s.strip()]
-            for i, action in enumerate(raw_steps):
-                # Remove step numbers if present (e.g., "1.", "Step 1:", etc.)
-                action = re.sub(r'^(\d+\.|\d+\)|\bStep\s+\d+:?)\s*', '', action, flags=re.IGNORECASE)
-                
-                # Get ingredients for this step from the list of lists
-                step_ingredients = []
-                if isinstance(ingredients, list) and len(ingredients) > i:
-                    step_ing_list = ingredients[i] if isinstance(ingredients[i], list) else []
-                    step_ingredients = [parse_ingredient(ing_str) for ing_str in step_ing_list if ing_str]
-                
-                steps.append({
-                    "step_number": i + 1,
-                    "action": action,
-                    "time_minutes": None,
-                    "ingredients": step_ingredients
-                })
+        llm_steps = llm_data.get("steps", [])
         
-        # If no steps but have ingredients, create steps from ingredient lists
-        elif ingredients and isinstance(ingredients, list):
-            for i, step_ing_list in enumerate(ingredients):
-                if isinstance(step_ing_list, list) and step_ing_list:
-                    parsed_step_ingredients = [parse_ingredient(ing_str) for ing_str in step_ing_list if ing_str]
+        if llm_steps and isinstance(llm_steps, list):
+            # New format: steps with ingredients and times already structured
+            for i, step_data in enumerate(llm_steps):
+                if isinstance(step_data, dict):
+                    action = step_data.get("action", "").strip()
+                    if not action:
+                        continue
+                    
+                    # Remove step numbers if present
+                    action = re.sub(r'^(\d+\.|\d+\)|\bStep\s+\d+:?)\s*', '', action, flags=re.IGNORECASE)
+                    
+                    # Get time for this specific step
+                    step_time = step_data.get("time_minutes")
+                    
+                    # Parse ingredients for this step
+                    step_ingredients = []
+                    ing_list = step_data.get("ingredients", [])
+                    if isinstance(ing_list, list):
+                        step_ingredients = [parse_ingredient(ing_str) for ing_str in ing_list if ing_str]
+                    
                     steps.append({
                         "step_number": i + 1,
-                        "action": f"Step {i + 1}",
-                        "time_minutes": None,
-                        "ingredients": parsed_step_ingredients
+                        "action": action,
+                        "time_minutes": step_time,
+                        "ingredients": step_ingredients
+                    })
+        else:
+            # Fallback: old format with separate ingredients and instructions
+            ingredients = llm_data.get("ingredients", [[]])
+            instructions = llm_data.get("instructions", "")
+            
+            if instructions:
+                raw_steps = [s.strip() for s in instructions.split('\n') if s.strip()]
+                for i, action in enumerate(raw_steps):
+                    action = re.sub(r'^(\d+\.|\d+\)|\bStep\s+\d+:?)\s*', '', action, flags=re.IGNORECASE)
+                    
+                    # Try to extract time from the action text
+                    time_match = re.search(r'(\d+)\s*(?:minute|min|hour|hr)', action, re.IGNORECASE)
+                    step_time = None
+                    if time_match:
+                        time_val = int(time_match.group(1))
+                        if 'hour' in action.lower() or 'hr' in action.lower():
+                            step_time = time_val * 60
+                        else:
+                            step_time = time_val
+                    
+                    # Get ingredients for this step
+                    step_ingredients = []
+                    if isinstance(ingredients, list) and len(ingredients) > i:
+                        step_ing_list = ingredients[i] if isinstance(ingredients[i], list) else []
+                        step_ingredients = [parse_ingredient(ing_str) for ing_str in step_ing_list if ing_str]
+                    
+                    steps.append({
+                        "step_number": i + 1,
+                        "action": action,
+                        "time_minutes": step_time,
+                        "ingredients": step_ingredients
                     })
         
         # Return in the same format as scraper.scrape_recipe()
@@ -234,8 +276,9 @@ def parse_llm_response(llm_output: str) -> Optional[Dict[str, Any]]:
         }
         
     except json.JSONDecodeError as e:
-        print(f"JSON decode error: {e}")
+        logger.error(f"JSON decode error: {e}")
+        logger.debug(f"Failed JSON: {llm_output[:500]}")
         return None
     except Exception as e:
-        print(f"Error parsing LLM response: {e}")
+        logger.error(f"Error parsing LLM response: {e}")
         return None

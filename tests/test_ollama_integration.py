@@ -252,6 +252,58 @@ class TestOllamaIntegration:
         # Should complete within timeout + buffer
         assert elapsed_time < timeout + 10, f"Took too long: {elapsed_time}s (timeout: {timeout}s)"
         print(f"\n✓ Extraction completed in {elapsed_time:.2f}s (timeout: {timeout}s)")
+    
+    def test_real_website_extraction(self):
+        """Test extracting a recipe from a real website that's not in recipe-scrapers."""
+        # Use a simple recipe site that's unlikely to be in recipe-scrapers
+        test_url = "https://nadialim.com/corn-bread/"
+        
+        try:
+            print(f"\n  Fetching real webpage: {test_url}")
+            response = requests.get(test_url, timeout=10, headers={
+                'User-Agent': 'Mozilla/5.0 (compatible; RecipeBot/1.0)'
+            })
+            response.raise_for_status()
+            html = response.text
+            
+            print(f"  Downloaded {len(html)} bytes")
+            print("  Extracting with LLM...")
+            
+            result = extract_recipe_with_llm(html, test_url)
+            
+            assert result is not None, "Failed to extract recipe from real website"
+            assert result["title"], "No title extracted"
+            assert len(result["steps"]) > 0, "No steps extracted"
+            
+            print(f"\n✓ Successfully extracted real recipe: {result['title']}")
+            print(f"  Total time: {result['total_time_minutes']} minutes")
+            print(f"  Servings: {result['base_servings']}")
+            print(f"  Steps: {len(result['steps'])}")
+            
+            # Verify ingredient distribution
+            steps_with_ingredients = [s for s in result["steps"] if s["ingredients"]]
+            total_ingredients = sum(len(s["ingredients"]) for s in result["steps"])
+            print(f"  Steps with ingredients: {len(steps_with_ingredients)}/{len(result['steps'])}")
+            print(f"  Total ingredients: {total_ingredients}")
+            
+            # Verify time extraction
+            steps_with_time = [s for s in result["steps"] if s["time_minutes"] is not None]
+            print(f"  Steps with time info: {len(steps_with_time)}")
+            
+            # Print first few steps for verification
+            print("\n  First 3 steps:")
+            for i, step in enumerate(result["steps"][:3], 1):
+                print(f"    {i}. {step['action'][:60]}{'...' if len(step['action']) > 60 else ''}")
+                print(f"       Time: {step['time_minutes']} min, Ingredients: {len(step['ingredients'])}")
+            
+            # Assert basic quality checks
+            assert total_ingredients > 0, "No ingredients were distributed to steps"
+            
+        except requests.RequestException as e:
+            pytest.skip(f"Could not fetch real website: {e}")
+        except Exception as e:
+            print(f"\n  Error details: {e}")
+            raise
 
 
 def manual_test():
@@ -299,6 +351,10 @@ def manual_test():
         print("\n5. Testing Non-Recipe Content")
         print("-" * 70)
         test.test_recipe_not_found()
+        
+        print("\n6. Testing Real Website Extraction")
+        print("-" * 70)
+        test.test_real_website_extraction()
         
         print("\n" + "=" * 70)
         print("All tests passed! ✓")
